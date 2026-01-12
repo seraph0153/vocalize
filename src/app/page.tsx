@@ -1,11 +1,11 @@
 'use client';
 
 import { useState, useMemo } from 'react';
-import { useLocalStorage } from './hooks/useLocalStorage';
-import { Word } from './types';
-import { getDueWords } from './utils/srs';
-import WordManager from './components/WordManager';
-import QuizView from './components/QuizView';
+import { useLocalStorage } from '@/hooks/useLocalStorage';
+import { Word } from '@/types';
+import { getDueWords } from '@/utils/srs';
+import WordManager from '@/components/WordManager';
+import QuizView from '@/components/QuizView';
 
 export default function Home() {
   const [words, setWords] = useLocalStorage<Word[]>('vocalize-words', []);

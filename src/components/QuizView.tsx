@@ -1,9 +1,9 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
-import { Word } from '../types';
-import { useSpeech } from '../hooks/useSpeech';
-import { calculateNextReview, resetSRSLevel } from '../utils/srs';
+import { Word } from '@/types';
+import { useSpeech } from '@/hooks/useSpeech';
+import { calculateNextReview, resetSRSLevel } from '@/utils/srs';
 
 interface QuizViewProps {
     words: Word[];

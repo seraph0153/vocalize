@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { Word } from '../types';
+import { Word } from '@/types';
 
 interface WordManagerProps {
     words: Word[];

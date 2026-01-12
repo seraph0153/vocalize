@@ -17,11 +17,17 @@ body {
 
 @layer components {
   .kid-card {
-    @apply bg-white rounded-3xl p-6 shadow-[0_8px_30px_rgb(0, 0, 0, 0.04)] border-4 border-transparent transition-all duration-300;
+    background-color: white;
+    border-radius: 1.5rem;
+    padding: 1.5rem;
+    box-shadow: 0 8px 30px rgba(0, 0, 0, 0.04);
+    border: 4px solid transparent;
+    transition: all 0.3s;
   }
 
   .kid-card:hover {
-    @apply shadow-[0_12px_40px_rgb(0, 0, 0, 0.08)] -translate-y-1;
+    box-shadow: 0 12px 40px rgba(0, 0, 0, 0.08);
+    transform: translateY(-0.25rem);
   }
 
   .kid-button {
@@ -29,15 +35,18 @@ body {
   }
 
   .btn-primary {
-    @apply bg-blue-500 hover:bg-blue-600 shadow-blue-200;
+    @apply bg-blue-500 hover:bg-blue-600;
+    box-shadow: 0 4px 6px -1px var(--primary), 0 2px 4px -1px var(--primary);
   }
 
   .btn-secondary {
-    @apply bg-pink-500 hover:bg-pink-600 shadow-pink-200;
+    @apply bg-pink-500 hover:bg-pink-600;
+    box-shadow: 0 4px 6px -1px var(--secondary), 0 2px 4px -1px var(--secondary);
   }
 
   .btn-accent {
-    @apply bg-emerald-500 hover:bg-emerald-600 shadow-emerald-200;
+    @apply bg-emerald-500 hover:bg-emerald-600;
+    box-shadow: 0 4px 6px -1px var(--accent), 0 2px 4px -1px var(--accent);
   }
 }
 
