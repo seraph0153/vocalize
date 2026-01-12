@@ -1,0 +1,5 @@
+:HL["/vocalize/_next/static/chunks/1ce31d8ecd23dcca.css","style"]
+:HL["/vocalize/_next/static/media/1b99372b3eaef0c8-s.p.758e15a8.woff2","font",{"crossOrigin":"","type":"font/woff2"}]
+:HL["/vocalize/_next/static/media/83afe278b6a6bb3c-s.p.3a6ba036.woff2","font",{"crossOrigin":"","type":"font/woff2"}]
+:HL["https://fonts.googleapis.com/css2?family=Outfit:wght@400;700;900&display=swap","style"]
+0:{"buildId":"XDnTIv_Z_KKljNFskFYfT","tree":{"name":"","paramType":null,"paramKey":"","hasRuntimePrefetch":false,"slots":{"children":{"name":"__PAGE__","paramType":null,"paramKey":"__PAGE__","hasRuntimePrefetch":false,"slots":null,"isRootLayout":false}},"isRootLayout":true},"staleTime":300}
