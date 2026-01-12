@@ -1,0 +1,87 @@
+import { create } from 'zustand';
+import { persist } from 'zustand/middleware';
+import { Word, QuizState } from '@/types';
+import { calculateNextReview, resetSRSLevel } from '@/utils/srs';
+
+interface AppState {
+    words: Word[];
+    dailyStreak: number;
+    lastStudyDate: string | null;
+    totalPoints: number;
+
+    // Actions
+    addWord: (term: string, definition: string) => void;
+    deleteWord: (id: string) => void;
+    updateWord: (id: string, updates: Partial<Word>) => void;
+    finishQuiz: (updatedWords: Word[]) => void;
+    updateStreak: () => void;
+}
+
+export const useWordStore = create<AppState>()(
+    persist(
+        (set, get) => ({
+            words: [],
+            dailyStreak: 0,
+            lastStudyDate: null,
+            totalPoints: 0,
+
+            addWord: (term, definition) => {
+                const newWord: Word = {
+                    id: crypto.randomUUID(),
+                    term,
+                    definition,
+                    level: 0,
+                    nextReviewAt: Date.now(),
+                    lastReviewedAt: 0,
+                    wrongCount: 0,
+                    addedAt: Date.now(),
+                };
+                set((state) => ({ words: [...state.words, newWord] }));
+            },
+
+            deleteWord: (id) => {
+                set((state) => ({ words: state.words.filter((w) => w.id !== id) }));
+            },
+
+            updateWord: (id, updates) => {
+                set((state) => ({
+                    words: state.words.map((w) => (w.id === id ? { ...w, ...updates } : w)),
+                }));
+            },
+
+            finishQuiz: (updatedWords) => {
+                set((state) => {
+                    const newWords = state.words.map((origin) => {
+                        const updated = updatedWords.find((u) => u.id === origin.id);
+                        return updated || origin;
+                    });
+
+                    // Calculate points (e.g., 10 points per quiz session)
+                    const newPoints = state.totalPoints + 10;
+
+                    return { words: newWords, totalPoints: newPoints };
+                });
+                get().updateStreak();
+            },
+
+            updateStreak: () => {
+                const today = new Date().toISOString().split('T')[0];
+                const lastDate = get().lastStudyDate;
+
+                if (lastDate === today) return;
+
+                const yesterday = new Date();
+                yesterday.setDate(yesterday.getDate() - 1);
+                const yesterdayStr = yesterday.toISOString().split('T')[0];
+
+                set((state) => ({
+                    lastStudyDate: today,
+                    dailyStreak: lastDate === yesterdayStr ? state.dailyStreak + 1 : 1,
+                }));
+            },
+        }),
+        {
+            name: 'vocalize-storage',
+        }
+    )
+);

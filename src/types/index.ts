@@ -7,6 +7,7 @@ export interface Word {
   lastReviewedAt: number; // 마지막 복습 시간
   wrongCount: number; // 틀린 횟수
   addedAt: number; // 추가된 시간
+  audioUrl?: string; // 커스텀 발음 녹음 URL
 }
 
 export interface QuizState {

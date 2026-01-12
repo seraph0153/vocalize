@@ -1,9 +1,12 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
+import { useState } from 'react';
 import { Word } from '@/types';
 import { useSpeech } from '@/hooks/useSpeech';
 import { calculateNextReview, resetSRSLevel } from '@/utils/srs';
+import { useWordStore } from '@/store/useWordStore';
+import { CheckCircle2, XCircle, Mic, ArrowLeft, Loader2 } from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
 
 interface QuizViewProps {
     words: Word[];
@@ -25,11 +28,9 @@ export default function QuizView({ words, onFinish, onCancel }: QuizViewProps) {
         if (isProcessing || isListening) return;
 
         try {
-            // 1. 단어 뜻을 먼저 보여주고 영단어를 말하도록 유도
             setIsProcessing(true);
             speak(`${currentWord.definition}. 영어로 말해보세요.`, 'ko-KR');
 
-            // 말하기 대기 (약간의 지연)
             setTimeout(async () => {
                 try {
                     const result = await listen();
@@ -62,7 +63,6 @@ export default function QuizView({ words, onFinish, onCancel }: QuizViewProps) {
             updateWordStats(currentWord.id, nextLevel, nextReviewAt, true);
         }
 
-        // 다음 단어로 이동
         setTimeout(() => {
             if (currentIndex < words.length - 1) {
                 setCurrentIndex(v => v + 1);
@@ -91,45 +91,73 @@ export default function QuizView({ words, onFinish, onCancel }: QuizViewProps) {
     };
 
     return (
-        <div className="fixed inset-0 bg-white z-50 flex flex-col items-center justify-center p-6">
-            <button
-                onClick={onCancel}
-                className="absolute top-6 right-6 text-gray-400 hover:text-gray-600"
-            >
-                <svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                </svg>
-            </button>
-
-            <div className="w-full max-w-lg text-center space-y-8">
-                <div className="text-gray-400 font-medium">
-                    문제 {currentIndex + 1} / {words.length}
+        <div className="fixed inset-0 bg-[#FDFCFB] z-50 flex flex-col items-center p-6 md:p-12 overflow-y-auto">
+            <nav className="w-full max-w-4xl flex justify-between items-center mb-12">
+                <button
+                    onClick={onCancel}
+                    className="p-3 bg-white rounded-2xl shadow-sm text-gray-400 hover:text-gray-600 transition-colors"
+                >
+                    <ArrowLeft className="w-6 h-6" />
+                </button>
+                <div className="text-sm font-bold text-gray-400 uppercase tracking-widest">
+                    QUIZ {currentIndex + 1} / {words.length}
                 </div>
+                <div className="w-12" />
+            </nav>
 
-                <div className="kid-card border-blue-200 py-12">
-                    <div className="text-5xl font-bold text-gray-800 mb-4">
+            <div className="w-full max-w-2xl flex-1 flex flex-col justify-center items-center gap-12">
+                {/* Question Card */}
+                <motion.div
+                    key={currentIndex}
+                    initial={{ opacity: 0, scale: 0.9, y: 20 }}
+                    animate={{ opacity: 1, scale: 1, y: 0 }}
+                    className="w-full kid-card bg-white shadow-2xl py-20 text-center relative overflow-hidden"
+                >
+                    <div className="text-6xl font-black text-gray-800 mb-4">
                         {currentWord.definition}
                     </div>
-                    <div className="text-xl text-blue-500 font-medium h-8">
-                        {userInput || (isListening ? '듣고 있어요...' : '버튼을 누르고 말해주세요')}
+                    <div className="text-xl text-blue-500 font-bold h-8">
+                        {userInput || (isListening ? '듣고 있어요...' : '')}
                     </div>
-                </div>
 
-                <div className="flex justify-center h-24 items-center">
-                    {feedback === 'correct' && (
-                        <div className="text-6xl animate-bounce">OK! 🌟</div>
-                    )}
-                    {feedback === 'wrong' && (
-                        <div className="text-6xl animate-shake">Try Again! ❤️</div>
-                    )}
+                    <AnimatePresence>
+                        {feedback === 'correct' && (
+                            <motion.div
+                                initial={{ scale: 0 }} animate={{ scale: 1 }}
+                                className="absolute inset-0 bg-emerald-500/10 flex items-center justify-center"
+                            >
+                                <CheckCircle2 className="w-32 h-32 text-emerald-500" />
+                            </motion.div>
+                        )}
+                        {feedback === 'wrong' && (
+                            <motion.div
+                                initial={{ scale: 0 }} animate={{ scale: 1 }}
+                                className="absolute inset-0 bg-red-500/10 flex items-center justify-center"
+                            >
+                                <XCircle className="w-32 h-32 text-red-500" />
+                            </motion.div>
+                        )}
+                    </AnimatePresence>
+                </motion.div>
+
+                {/* Action Button */}
+                <div className="h-40 flex items-center justify-center">
                     {!feedback && !isProcessing && (
-                        <button
+                        <motion.button
+                            whileHover={{ scale: 1.1 }}
+                            whileTap={{ scale: 0.9 }}
                             onClick={handleStartVoice}
                             disabled={isListening}
-                            className={`kid-button btn-primary scale-125 ${isListening ? 'opacity-50' : ''}`}
+                            className="w-24 h-24 bg-blue-600 rounded-full text-white shadow-xl shadow-blue-200 flex items-center justify-center group"
                         >
-                            🎤 정답 말하기
-                        </button>
+                            <Mic className="w-10 h-10 group-hover:scale-110 transition-transform" />
+                        </motion.button>
+                    )}
+                    {isProcessing && !feedback && (
+                        <div className="flex flex-col items-center gap-4">
+                            <Loader2 className="w-12 h-12 text-blue-500 animate-spin" />
+                            <div className="text-blue-500 font-bold">인식 중...</div>
+                        </div>
                     )}
                 </div>
             </div>
