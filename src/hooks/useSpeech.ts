@@ -39,13 +39,18 @@ export const useSpeech = () => {
             rec.interimResults = false;
             rec.maxAlternatives = 1;
 
-            rec.onstart = () => setIsListening(true);
+            rec.onstart = () => {
+                setIsListening(true);
+                setError(null);
+            };
             rec.onend = () => {
                 setIsListening(false);
                 setRecognition(null);
             };
             rec.onerror = (event: any) => {
-                setError(event.error);
+                console.error('Speech Recognition Error:', event.error);
+                setError(event.error === 'not-allowed' ? '마이크 권한이 필요합니다.' : event.error);
+                setIsListening(false);
                 setRecognition(null);
                 reject(event.error);
             };

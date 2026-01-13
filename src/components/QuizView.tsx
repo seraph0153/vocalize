@@ -45,14 +45,19 @@ export default function QuizView({ words, onFinish, onCancel }: QuizViewProps) {
             // 1. 문제 출제 (자동 재생 시나리오)
             if (currentWord.audioUrl) {
                 const audio = new Audio(currentWord.audioUrl);
-                audio.onended = async () => {
-                    await startListening();
+                audio.onended = () => {
+                    // iOS 대응: 소리가 끝나고 바로 마이크를 켜면 하드웨어가 준비 안 될 수 있음
+                    setTimeout(async () => {
+                        await startListening();
+                    }, 300);
                 };
                 audio.play();
             } else {
                 // 뜻을 읽어주고 바로 인식 모드로 (onEnd 콜백 활용)
-                speak(`${currentWord.definition}`, 'ko-KR', async () => {
-                    await startListening();
+                speak(`${currentWord.definition}`, 'ko-KR', () => {
+                    setTimeout(async () => {
+                        await startListening();
+                    }, 300);
                 });
             }
         } catch (err) {
@@ -84,7 +89,7 @@ export default function QuizView({ words, onFinish, onCancel }: QuizViewProps) {
             const { nextLevel, nextReviewAt } = calculateNextReview(currentWord.level);
             updateWordStats(currentWord.id, nextLevel, nextReviewAt, false);
 
-            // 정답일 땐 아주 빠르게 다음으로 (0.3초 - 소리만 들리면 바로 넘김)
+            // 정답일 땐 아주 빠르게 다음으로
             setTimeout(() => {
                 moveToNext();
             }, 300);
@@ -95,10 +100,12 @@ export default function QuizView({ words, onFinish, onCancel }: QuizViewProps) {
             if (remainingChances > 0) {
                 setFeedback('retry');
                 // "Try again!" 짧게 말하고 바로 다시 인식 모드로 (완전 자동화)
-                speak('Try again!', 'en-US', async () => {
-                    setFeedback(null);
-                    setUserInput('');
-                    await startListening();
+                speak('Try again!', 'en-US', () => {
+                    setTimeout(async () => {
+                        setFeedback(null);
+                        setUserInput('');
+                        await startListening();
+                    }, 300); // 여기서도 딜레이 추가
                 });
             } else {
                 // 3번 다 틀렸을 때
