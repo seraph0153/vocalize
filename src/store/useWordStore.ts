@@ -32,7 +32,7 @@ export const useWordStore = create<AppState>()(
 
             addWord: (term, definition, audioUrl) => {
                 const newWord: Word = {
-                    id: crypto.randomUUID(),
+                    id: typeof crypto.randomUUID === 'function' ? crypto.randomUUID() : Math.random().toString(36).substring(2),
                     term,
                     definition,
                     level: 0,
@@ -50,7 +50,7 @@ export const useWordStore = create<AppState>()(
                 const filteredNewWords = newWordsList
                     .filter(nw => !currentWords.some(cw => cw.term.toLowerCase() === nw.term.toLowerCase()))
                     .map(nw => ({
-                        id: crypto.randomUUID(),
+                        id: typeof crypto.randomUUID === 'function' ? crypto.randomUUID() : Math.random().toString(36).substring(2),
                         term: nw.term,
                         definition: nw.definition,
                         level: 0,

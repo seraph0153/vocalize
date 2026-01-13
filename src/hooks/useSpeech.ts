@@ -21,9 +21,6 @@ export const useSpeech = () => {
         window.speechSynthesis.speak(utterance);
     }, []);
 
-    // STT 인스턴스를 관리하기 위한 ref
-    const recognitionRef = (typeof window !== 'undefined') ? new (useState<any>(null)[0]) : null;
-    // 위 방식은 잘못되었으므로 아래와 같이 ref 사용
     const [recognition, setRecognition] = useState<any>(null);
 
     // Speech-to-Text (STT)
