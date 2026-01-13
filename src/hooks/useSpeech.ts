@@ -42,10 +42,12 @@ export const useSpeech = () => {
             rec.onstart = () => {
                 setIsListening(true);
                 setError(null);
+                console.log('Speech Recognition Started');
             };
             rec.onend = () => {
                 setIsListening(false);
                 setRecognition(null);
+                console.log('Speech Recognition Ended');
             };
             rec.onerror = (event: any) => {
                 console.error('Speech Recognition Error:', event.error);
