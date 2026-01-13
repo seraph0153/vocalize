@@ -1,11 +1,11 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Word } from '@/types';
 import { useSpeech } from '@/hooks/useSpeech';
 import { calculateNextReview, resetSRSLevel } from '@/utils/srs';
 import { useWordStore } from '@/store/useWordStore';
-import { CheckCircle2, XCircle, Mic, ArrowLeft, Loader2 } from 'lucide-react';
+import { CheckCircle2, XCircle, Mic, ArrowLeft, Loader2, RotateCcw } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 
 interface QuizViewProps {
@@ -17,24 +17,16 @@ interface QuizViewProps {
 export default function QuizView({ words, onFinish, onCancel }: QuizViewProps) {
     const [currentIndex, setCurrentIndex] = useState(0);
     const [userInput, setUserInput] = useState('');
-    const [feedback, setFeedback] = useState<'correct' | 'wrong' | null>(null);
+    const [feedback, setFeedback] = useState<'correct' | 'wrong' | 'retry' | null>(null);
     const [isProcessing, setIsProcessing] = useState(false);
     const [updatedWords, setUpdatedWords] = useState<Word[]>([...words]);
-
-    if (words.length === 0) {
-        return (
-            <div className="fixed inset-0 bg-[#FDFCFB] z-50 flex items-center justify-center p-6">
-                <div className="text-center space-y-4">
-                    <div className="text-6xl">🐣</div>
-                    <div className="text-xl font-bold text-gray-400">학습할 단어가 없어요!</div>
-                    <button onClick={onCancel} className="kid-button btn-primary">돌아가기</button>
-                </div>
-            </div>
-        );
-    }
+    const [chances, setChances] = useState(3);
 
     const { speak, listen, isListening } = useSpeech();
     const currentWord = words[currentIndex];
+
+    // 효과음 미리 로드 (사용자님 요청: 띠링 하는 이벤트 음)
+    const [ding] = useState(() => typeof Audio !== 'undefined' ? new Audio('https://assets.mixkit.co/active_storage/sfx/2000/2000-preview.mp3') : null);
 
     const handleStartVoice = async () => {
         if (isProcessing || isListening) return;
@@ -42,15 +34,16 @@ export default function QuizView({ words, onFinish, onCancel }: QuizViewProps) {
         try {
             setIsProcessing(true);
 
-            // 1. 커스텀 녹음이 있다면 그걸 먼저 틀어주고, 없으면 로봇(TTS) 목소리가 나옵니다.
+            // 1. 시작 멘트 생략 (사용자님 요청)
+            // 커스텀 녹음이 있다면 그걸 틀어주고, 없으면 바로 인식 모드로 진입하거나 뜻을 읽어줌
             if (currentWord.audioUrl) {
                 const audio = new Audio(currentWord.audioUrl);
                 audio.play();
-                // 오디오 재생 시간을 고려해 약간 대기
                 await new Promise(resolve => setTimeout(resolve, 1500));
             } else {
-                speak(`${currentWord.definition}. 영어로 말해보세요.`, 'ko-KR');
-                await new Promise(resolve => setTimeout(resolve, 2000));
+                // 뜻만 아주 짧게 읽어줌
+                speak(`${currentWord.definition}`, 'ko-KR');
+                await new Promise(resolve => setTimeout(resolve, 1000));
             }
 
             try {
@@ -71,28 +64,55 @@ export default function QuizView({ words, onFinish, onCancel }: QuizViewProps) {
 
         if (isCorrect) {
             setFeedback('correct');
-            speak('Perfect! Great job.', 'en-US');
+            if (ding) {
+                ding.currentTime = 0;
+                ding.play();
+            }
 
             const { nextLevel, nextReviewAt } = calculateNextReview(currentWord.level);
             updateWordStats(currentWord.id, nextLevel, nextReviewAt, false);
+
+            // 정답일 땐 아주 빠르게 다음으로 (딜레이 최소화 - 사용자님 요청)
+            setTimeout(() => {
+                moveToNext();
+            }, 800);
         } else {
-            setFeedback('wrong');
-            speak(`Oh no. It is ${currentWord.term}.`, 'en-US');
+            const remainingChances = chances - 1;
+            setChances(remainingChances);
 
-            const { nextLevel, nextReviewAt } = resetSRSLevel();
-            updateWordStats(currentWord.id, nextLevel, nextReviewAt, true);
-        }
-
-        setTimeout(() => {
-            if (currentIndex < words.length - 1) {
-                setCurrentIndex(v => v + 1);
-                setUserInput('');
-                setFeedback(null);
-                setIsProcessing(false);
+            if (remainingChances > 0) {
+                setFeedback('retry');
+                speak('Try again!', 'en-US');
+                setTimeout(() => {
+                    setFeedback(null);
+                    setUserInput('');
+                    setIsProcessing(false);
+                }, 1500);
             } else {
-                onFinish(updatedWords);
+                // 3번 다 틀렸을 때
+                setFeedback('wrong');
+                speak(`It's okay. It is ${currentWord.term}.`, 'en-US');
+
+                const { nextLevel, nextReviewAt } = resetSRSLevel();
+                updateWordStats(currentWord.id, nextLevel, nextReviewAt, true);
+
+                setTimeout(() => {
+                    moveToNext();
+                }, 2500);
             }
-        }, 3000);
+        }
+    };
+
+    const moveToNext = () => {
+        if (currentIndex < words.length - 1) {
+            setCurrentIndex(v => v + 1);
+            setUserInput('');
+            setFeedback(null);
+            setIsProcessing(false);
+            setChances(3); // 기회 초기화
+        } else {
+            onFinish(updatedWords);
+        }
     };
 
     const updateWordStats = (id: string, level: number, nextReviewAt: number, isWrong: boolean) => {
@@ -119,8 +139,15 @@ export default function QuizView({ words, onFinish, onCancel }: QuizViewProps) {
                 >
                     <ArrowLeft className="w-6 h-6" />
                 </button>
-                <div className="text-sm font-bold text-gray-400 uppercase tracking-widest">
-                    QUIZ {currentIndex + 1} / {words.length}
+                <div className="flex flex-col items-center">
+                    <div className="text-sm font-bold text-gray-400 uppercase tracking-widest">
+                        QUIZ {currentIndex + 1} / {words.length}
+                    </div>
+                    <div className="flex gap-1 mt-1">
+                        {[...Array(3)].map((_, i) => (
+                            <div key={i} className={`w-2 h-2 rounded-full ${i < chances ? 'bg-orange-400' : 'bg-gray-200'}`} />
+                        ))}
+                    </div>
                 </div>
                 <div className="w-12" />
             </nav>
@@ -144,17 +171,35 @@ export default function QuizView({ words, onFinish, onCancel }: QuizViewProps) {
                         {feedback === 'correct' && (
                             <motion.div
                                 initial={{ scale: 0 }} animate={{ scale: 1 }}
-                                className="absolute inset-0 bg-emerald-500/10 flex items-center justify-center"
+                                className="absolute inset-0 bg-emerald-500/10 flex items-center justify-center backdrop-blur-[2px]"
                             >
-                                <CheckCircle2 className="w-32 h-32 text-emerald-500" />
+                                <div className="flex flex-col items-center">
+                                    <CheckCircle2 className="w-32 h-32 text-emerald-500" />
+                                    <div className="text-emerald-600 font-black text-2xl mt-4">Great!</div>
+                                </div>
+                            </motion.div>
+                        )}
+                        {feedback === 'retry' && (
+                            <motion.div
+                                initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+                                className="absolute inset-0 bg-orange-500/10 flex items-center justify-center"
+                            >
+                                <div className="flex flex-col items-center gap-2">
+                                    <RotateCcw className="w-20 h-20 text-orange-500 animate-spin-slow" />
+                                    <div className="text-orange-600 font-black text-xl">다시 시도해보세요! ({chances}회 남음)</div>
+                                </div>
                             </motion.div>
                         )}
                         {feedback === 'wrong' && (
                             <motion.div
                                 initial={{ scale: 0 }} animate={{ scale: 1 }}
-                                className="absolute inset-0 bg-red-500/10 flex items-center justify-center"
+                                className="absolute inset-0 bg-red-500/10 flex items-center justify-center backdrop-blur-[2px]"
                             >
-                                <XCircle className="w-32 h-32 text-red-500" />
+                                <div className="flex flex-col items-center text-red-500">
+                                    <XCircle className="w-32 h-32" />
+                                    <div className="font-black text-4xl mt-4">{currentWord.term}</div>
+                                    <div className="font-bold text-lg">오답 노트에 저장되었어요!</div>
+                                </div>
                             </motion.div>
                         )}
                     </AnimatePresence>

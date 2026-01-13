@@ -21,17 +21,21 @@ export default function Home() {
   const { words, finishQuiz } = useWordStore();
   const [activeTab, setActiveTab] = useState<'dashboard' | 'words' | 'ocr'>('dashboard');
   const [isQuizMode, setIsQuizMode] = useState(false);
-  const [quizFilter, setQuizFilter] = useState<'all' | 'review'>('all');
+  const [quizFilter, setQuizFilter] = useState<'all' | 'review' | 'wrong'>('all');
 
-  const startQuiz = (filter: 'all' | 'review') => {
+  const startQuiz = (filter: 'all' | 'review' | 'wrong') => {
     setQuizFilter(filter);
     setIsQuizMode(true);
   };
 
   const dueWords = getDueWords(words);
+  const wrongWords = words.filter(w => w.wrongCount > 0);
 
   if (isQuizMode) {
-    const quizWords = quizFilter === 'review' ? dueWords : words;
+    let quizWords = words;
+    if (quizFilter === 'review') quizWords = dueWords;
+    if (quizFilter === 'wrong') quizWords = wrongWords;
+
     return (
       <QuizView
         words={quizWords}
@@ -91,7 +95,7 @@ export default function Home() {
             onClick={() => startQuiz('all')}
             className="hidden sm:flex kid-button btn-primary items-center gap-2"
           >
-            퀴즈 시작 <ChevronRight className="w-5 h-5" />
+            전체 퀴즈 시작 <ChevronRight className="w-5 h-5" />
           </button>
         </header>
 
@@ -103,7 +107,7 @@ export default function Home() {
             exit={{ opacity: 0, scale: 1.02 }}
             transition={{ duration: 0.2 }}
           >
-            {activeTab === 'dashboard' && <Dashboard />}
+            {activeTab === 'dashboard' && <Dashboard onStartQuiz={startQuiz} />}
             {activeTab === 'words' && <WordManager />}
             {activeTab === 'ocr' && <OCRScanner onComplete={() => setActiveTab('words')} />}
           </motion.div>
@@ -135,4 +139,3 @@ function NavButton({ active, onClick, icon: Icon, label }: any) {
     </button>
   );
 }
-
