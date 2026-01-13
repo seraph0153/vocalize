@@ -18,6 +18,7 @@ export default function QuizView({ words, onFinish, onCancel }: QuizViewProps) {
     const [currentIndex, setCurrentIndex] = useState(0);
     const [userInput, setUserInput] = useState('');
     const [feedback, setFeedback] = useState<'correct' | 'wrong' | 'retry' | null>(null);
+    const [grade, setGrade] = useState<string | null>(null);
     const [isProcessing, setIsProcessing] = useState(false);
     const [updatedWords, setUpdatedWords] = useState<Word[]>([...words]);
     const [chances, setChances] = useState(3);
@@ -25,35 +26,55 @@ export default function QuizView({ words, onFinish, onCancel }: QuizViewProps) {
     const { speak, listen, stopListening, isListening } = useSpeech();
     const currentWord = words[currentIndex];
 
-    // 효과음 미리 로드 (사용자님 요청: 띠링 하는 이벤트 음)
-    const [ding] = useState(() => typeof Audio !== 'undefined' ? new Audio('https://assets.mixkit.co/active_storage/sfx/2000/2000-preview.mp3') : null);
+    // 효과음 미리 로드 (띵동~ 소리로 교체)
+    const [ding] = useState(() => typeof Audio !== 'undefined' ? new Audio('https://assets.mixkit.co/active_storage/sfx/2013/2013-preview.mp3') : null);
 
     // 컴포넌트 마운트 시 첫 번째 문제 자동 시작
     useEffect(() => {
         const timer = setTimeout(() => {
             handleStartVoice();
-        }, 500);
+        }, 800);
         return () => clearTimeout(timer);
     }, [currentIndex]);
+
+    // 등급 계산 함수 (정확한 포함 관계 및 유사도 체크)
+    const calculateGrade = (input: string, target: string): string => {
+        const cleanInput = input.toLowerCase().trim();
+        const cleanTarget = target.toLowerCase().trim();
+
+        if (cleanInput === cleanTarget) return 'A+';
+        if (cleanInput.includes(cleanTarget)) return 'A';
+
+        let matches = 0;
+        const targetChars = cleanTarget.split('');
+        targetChars.forEach(char => {
+            if (cleanInput.includes(char)) matches++;
+        });
+
+        const ratio = matches / cleanTarget.length;
+        if (ratio > 0.8) return 'B+';
+        if (ratio > 0.6) return 'B';
+        if (ratio > 0.4) return 'C';
+        return 'D';
+    };
 
     const handleStartVoice = async () => {
         if (isProcessing || isListening) return;
 
         try {
             setIsProcessing(true);
+            setGrade(null);
 
             // 1. 문제 출제 (자동 재생 시나리오)
             if (currentWord.audioUrl) {
                 const audio = new Audio(currentWord.audioUrl);
                 audio.onended = () => {
-                    // iOS 대응: 소리가 끝나고 바로 마이크를 켜면 하드웨어가 준비 안 될 수 있음
                     setTimeout(async () => {
                         await startListening();
                     }, 300);
                 };
                 audio.play();
             } else {
-                // 뜻을 읽어주고 바로 인식 모드로 (onEnd 콜백 활용)
                 speak(`${currentWord.definition}`, 'ko-KR', () => {
                     setTimeout(async () => {
                         await startListening();
@@ -78,6 +99,8 @@ export default function QuizView({ words, onFinish, onCancel }: QuizViewProps) {
 
     const checkAnswer = (input: string) => {
         const isCorrect = input.toLowerCase().includes(currentWord.term.toLowerCase());
+        const resultGrade = calculateGrade(input, currentWord.term);
+        setGrade(resultGrade);
 
         if (isCorrect) {
             setFeedback('correct');
@@ -89,31 +112,30 @@ export default function QuizView({ words, onFinish, onCancel }: QuizViewProps) {
             const { nextLevel, nextReviewAt } = calculateNextReview(currentWord.level);
             updateWordStats(currentWord.id, nextLevel, nextReviewAt, false);
 
-            // 정답일 땐 아주 빠르게 다음으로
+            // 등급을 보여주기 위해 1.2초 정도 여유를 두고 이동
             setTimeout(() => {
                 moveToNext();
-            }, 300);
+            }, 1200);
         } else {
             const remainingChances = chances - 1;
             setChances(remainingChances);
 
             if (remainingChances > 0) {
                 setFeedback('retry');
-                // "Try again!" 짧게 말하고 바로 다시 인식 모드로 (완전 자동화)
                 speak('Try again!', 'en-US', () => {
                     setTimeout(async () => {
                         setFeedback(null);
+                        setGrade(null);
                         setUserInput('');
                         await startListening();
-                    }, 300); // 여기서도 딜레이 추가
+                    }, 300);
                 });
             } else {
-                // 3번 다 틀렸을 때
                 setFeedback('wrong');
                 speak(`It is ${currentWord.term}.`, 'en-US', () => {
                     setTimeout(() => {
                         moveToNext();
-                    }, 1000); // 틀렸을 땐 정답 확인을 위해 1초 정도 유지
+                    }, 2000);
                 });
 
                 const { nextLevel, nextReviewAt } = resetSRSLevel();
@@ -127,8 +149,9 @@ export default function QuizView({ words, onFinish, onCancel }: QuizViewProps) {
             setCurrentIndex(v => v + 1);
             setUserInput('');
             setFeedback(null);
+            setGrade(null);
             setIsProcessing(false);
-            setChances(3); // 기회 초기화
+            setChances(3);
         } else {
             onFinish(updatedWords);
         }
@@ -186,7 +209,7 @@ export default function QuizView({ words, onFinish, onCancel }: QuizViewProps) {
                         {currentWord.definition}
                     </div>
                     <div className="text-xl text-blue-500 font-bold h-8">
-                        {userInput || (isListening ? '듣고 있어요...' : '')}
+                        {userInput || (isListening ? 'Listening...' : '')}
                     </div>
 
                     <AnimatePresence>
@@ -196,8 +219,11 @@ export default function QuizView({ words, onFinish, onCancel }: QuizViewProps) {
                                 className="absolute inset-0 bg-emerald-500/10 flex items-center justify-center backdrop-blur-[2px]"
                             >
                                 <div className="flex flex-col items-center">
-                                    <CheckCircle2 className="w-32 h-32 text-emerald-500" />
-                                    <div className="text-emerald-600 font-black text-2xl mt-4">Great!</div>
+                                    <div className="text-6xl font-black text-emerald-500 mb-2 drop-shadow-sm">
+                                        {grade}
+                                    </div>
+                                    <CheckCircle2 className="w-24 h-24 text-emerald-500" />
+                                    <div className="text-emerald-600 font-black text-2xl mt-4">Great Job!</div>
                                 </div>
                             </motion.div>
                         )}
@@ -208,7 +234,7 @@ export default function QuizView({ words, onFinish, onCancel }: QuizViewProps) {
                             >
                                 <div className="flex flex-col items-center gap-2">
                                     <RotateCcw className="w-20 h-20 text-orange-500 animate-spin-slow" />
-                                    <div className="text-orange-600 font-black text-xl">다시 시도해보세요! ({chances}회 남음)</div>
+                                    <div className="text-orange-600 font-black text-xl">Try again! ({chances} left)</div>
                                 </div>
                             </motion.div>
                         )}
@@ -220,16 +246,32 @@ export default function QuizView({ words, onFinish, onCancel }: QuizViewProps) {
                                 <div className="flex flex-col items-center text-red-500">
                                     <XCircle className="w-32 h-32" />
                                     <div className="font-black text-4xl mt-4">{currentWord.term}</div>
-                                    <div className="font-bold text-lg">오답 노트에 저장되었어요!</div>
+                                    <div className="font-bold text-lg mt-2">The answer is {currentWord.term}</div>
                                 </div>
                             </motion.div>
                         )}
                     </AnimatePresence>
                 </motion.div>
 
-                {/* Action Button */}
-                <div className="h-40 flex items-center justify-center">
-                    {/* 듣고 있을 때는 정지 버튼 */}
+                {/* Action Button & Visualizer */}
+                <div className="h-48 flex items-center justify-center relative">
+                    {isListening && (
+                        <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+                            <motion.div
+                                initial={{ scale: 0.8, opacity: 0.5 }}
+                                animate={{ scale: [1, 1.8, 1], opacity: [0.5, 0, 0.5] }}
+                                transition={{ duration: 1.5, repeat: Infinity, ease: "easeInOut" }}
+                                className="w-24 h-24 bg-blue-400/30 rounded-full"
+                            />
+                            <motion.div
+                                initial={{ scale: 0.8, opacity: 0.3 }}
+                                animate={{ scale: [1, 2.5, 1], opacity: [0.3, 0, 0.3] }}
+                                transition={{ duration: 1.5, repeat: Infinity, ease: "easeInOut", delay: 0.5 }}
+                                className="w-24 h-24 bg-blue-300/20 rounded-full"
+                            />
+                        </div>
+                    )}
+
                     {isListening ? (
                         <motion.button
                             whileHover={{ scale: 1.1 }}
@@ -238,7 +280,7 @@ export default function QuizView({ words, onFinish, onCancel }: QuizViewProps) {
                                 stopListening();
                                 setIsProcessing(false);
                             }}
-                            className="w-24 h-24 bg-red-500 rounded-full text-white shadow-xl shadow-red-200 flex items-center justify-center group"
+                            className="w-24 h-24 bg-red-500 rounded-full text-white shadow-xl shadow-red-200 flex items-center justify-center group z-10"
                         >
                             <Square className="w-10 h-10 fill-current group-hover:scale-110 transition-transform" />
                         </motion.button>
@@ -249,15 +291,15 @@ export default function QuizView({ words, onFinish, onCancel }: QuizViewProps) {
                                     whileHover={{ scale: 1.1 }}
                                     whileTap={{ scale: 0.9 }}
                                     onClick={handleStartVoice}
-                                    className="w-24 h-24 bg-blue-600 rounded-full text-white shadow-xl shadow-blue-200 flex items-center justify-center group"
+                                    className="w-24 h-24 bg-blue-600 rounded-full text-white shadow-xl shadow-blue-200 flex items-center justify-center group z-10"
                                 >
                                     <Mic className="w-10 h-10 group-hover:scale-110 transition-transform" />
                                 </motion.button>
                             )}
                             {isProcessing && !feedback && (
-                                <div className="flex flex-col items-center gap-4">
+                                <div className="flex flex-col items-center gap-4 z-10">
                                     <Loader2 className="w-12 h-12 text-blue-500 animate-spin" />
-                                    <div className="text-blue-500 font-bold">생각 중...</div>
+                                    <div className="text-blue-500 font-bold">Preparing...</div>
                                 </div>
                             )}
                         </>
