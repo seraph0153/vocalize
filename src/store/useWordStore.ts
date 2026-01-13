@@ -10,7 +10,7 @@ interface AppState {
     totalPoints: number;
 
     // Actions
-    addWord: (term: string, definition: string) => void;
+    addWord: (term: string, definition: string, audioUrl?: string) => void;
     deleteWord: (id: string) => void;
     updateWord: (id: string, updates: Partial<Word>) => void;
     finishQuiz: (updatedWords: Word[]) => void;
@@ -25,7 +25,7 @@ export const useWordStore = create<AppState>()(
             lastStudyDate: null,
             totalPoints: 0,
 
-            addWord: (term, definition) => {
+            addWord: (term, definition, audioUrl) => {
                 const newWord: Word = {
                     id: crypto.randomUUID(),
                     term,
@@ -35,6 +35,7 @@ export const useWordStore = create<AppState>()(
                     lastReviewedAt: 0,
                     wrongCount: 0,
                     addedAt: Date.now(),
+                    audioUrl,
                 };
                 set((state) => ({ words: [...state.words, newWord] }));
             },

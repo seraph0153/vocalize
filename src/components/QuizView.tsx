@@ -21,6 +21,18 @@ export default function QuizView({ words, onFinish, onCancel }: QuizViewProps) {
     const [isProcessing, setIsProcessing] = useState(false);
     const [updatedWords, setUpdatedWords] = useState<Word[]>([...words]);
 
+    if (words.length === 0) {
+        return (
+            <div className="fixed inset-0 bg-[#FDFCFB] z-50 flex items-center justify-center p-6">
+                <div className="text-center space-y-4">
+                    <div className="text-6xl">🐣</div>
+                    <div className="text-xl font-bold text-gray-400">학습할 단어가 없어요!</div>
+                    <button onClick={onCancel} className="kid-button btn-primary">돌아가기</button>
+                </div>
+            </div>
+        );
+    }
+
     const { speak, listen, isListening } = useSpeech();
     const currentWord = words[currentIndex];
 
@@ -29,18 +41,26 @@ export default function QuizView({ words, onFinish, onCancel }: QuizViewProps) {
 
         try {
             setIsProcessing(true);
-            speak(`${currentWord.definition}. 영어로 말해보세요.`, 'ko-KR');
 
-            setTimeout(async () => {
-                try {
-                    const result = await listen();
-                    setUserInput(result);
-                    checkAnswer(result);
-                } catch (err) {
-                    console.error('Speech recognition error:', err);
-                    setIsProcessing(false);
-                }
-            }, 2000);
+            // 1. 커스텀 녹음이 있다면 그걸 먼저 틀어주고, 없으면 로봇(TTS) 목소리가 나옵니다.
+            if (currentWord.audioUrl) {
+                const audio = new Audio(currentWord.audioUrl);
+                audio.play();
+                // 오디오 재생 시간을 고려해 약간 대기
+                await new Promise(resolve => setTimeout(resolve, 1500));
+            } else {
+                speak(`${currentWord.definition}. 영어로 말해보세요.`, 'ko-KR');
+                await new Promise(resolve => setTimeout(resolve, 2000));
+            }
+
+            try {
+                const result = await listen();
+                setUserInput(result);
+                checkAnswer(result);
+            } catch (err) {
+                console.error('Speech recognition error:', err);
+                setIsProcessing(false);
+            }
         } catch (err) {
             setIsProcessing(false);
         }

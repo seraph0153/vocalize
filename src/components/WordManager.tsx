@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useRef } from 'react';
-import { Plus, Trash2, Mic, Square, Play, Upload, List, Hash } from 'lucide-react';
+import { Plus, Trash2, Mic, Square, Play, Upload, List, Hash, Volume2, Save } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Word } from '@/types';
 import { useWordStore } from '@/store/useWordStore';
@@ -23,9 +23,7 @@ export default function WordManager() {
     const handleManualSubmit = (e: React.FormEvent) => {
         e.preventDefault();
         if (term.trim() && definition.trim()) {
-            addWord(term.trim(), definition.trim());
-            // In a real app, we'd save the recordedUrl too.
-            // For now, we focus on the core requirement logic.
+            addWord(term.trim(), definition.trim(), recordedUrl || undefined);
             setTerm('');
             setDefinition('');
             setRecordedUrl(null);
@@ -56,6 +54,8 @@ export default function WordManager() {
                 const blob = new Blob(chunks, { type: 'audio/ogg; codecs=opus' });
                 const url = URL.createObjectURL(blob);
                 setRecordedUrl(url);
+                // Clean up stream
+                stream.getTracks().forEach(track => track.stop());
             };
 
             recorder.start();
@@ -74,16 +74,16 @@ export default function WordManager() {
     return (
         <div className="space-y-8">
             {/* Mode Toggle */}
-            <div className="flex p-1 bg-gray-100 rounded-2xl w-fit">
+            <div className="flex p-1 bg-gray-100 rounded-2xl w-fit mx-auto lg:mx-0">
                 <button
                     onClick={() => setMode('manual')}
-                    className={`px-6 py-2 rounded-xl text-sm font-bold transition-all ${mode === 'manual' ? 'bg-white shadow-sm text-blue-600' : 'text-gray-400'}`}
+                    className={`px-8 py-2 rounded-xl text-sm font-black transition-all ${mode === 'manual' ? 'bg-white shadow-md text-blue-600' : 'text-gray-400'}`}
                 >
-                    직접 입력
+                    직접 & 목소리 녹음
                 </button>
                 <button
                     onClick={() => setMode('bulk')}
-                    className={`px-6 py-2 rounded-xl text-sm font-bold transition-all ${mode === 'bulk' ? 'bg-white shadow-sm text-blue-600' : 'text-gray-400'}`}
+                    className={`px-8 py-2 rounded-xl text-sm font-black transition-all ${mode === 'bulk' ? 'bg-white shadow-md text-emerald-600' : 'text-gray-400'}`}
                 >
                     대량 추가
                 </button>
@@ -93,78 +93,98 @@ export default function WordManager() {
                 {mode === 'manual' ? (
                     <motion.section
                         key="manual"
-                        initial={{ opacity: 0, x: -20 }}
-                        animate={{ opacity: 1, x: 0 }}
-                        exit={{ opacity: 0, x: 20 }}
-                        className="kid-card border-blue-100"
+                        initial={{ opacity: 0, y: 10 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        exit={{ opacity: 0, y: -10 }}
+                        className="kid-card border-blue-100 bg-white shadow-xl"
                     >
-                        <h2 className="text-2xl font-bold mb-6 text-blue-600 flex items-center gap-2">
-                            <Plus className="w-6 h-6" /> 새 단어 추가하기
-                        </h2>
-                        <form onSubmit={handleManualSubmit} className="space-y-4">
-                            <div className="flex flex-col md:flex-row gap-4">
-                                <input
-                                    type="text"
-                                    placeholder="English Word (Apple)"
-                                    className="flex-1 p-4 rounded-2xl border-2 border-gray-100 focus:border-blue-400 outline-none transition-colors text-lg"
-                                    value={term}
-                                    onChange={(e) => setTerm(e.target.value)}
-                                />
-                                <input
-                                    type="text"
-                                    placeholder="한국어 뜻 (사과)"
-                                    className="flex-1 p-4 rounded-2xl border-2 border-gray-100 focus:border-blue-400 outline-none transition-colors text-lg"
-                                    value={definition}
-                                    onChange={(e) => setDefinition(e.target.value)}
-                                />
-                            </div>
-
-                            <div className="flex items-center gap-4 p-4 bg-gray-50 rounded-2xl border-2 border-dashed border-gray-200">
-                                <div className="text-sm font-bold text-gray-400 flex-1">
-                                    커스텀 발음 녹음 (선택)
+                        <form onSubmit={handleManualSubmit} className="space-y-6">
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                <div className="space-y-2">
+                                    <label className="text-sm font-black text-gray-400 ml-2">영단어 (English)</label>
+                                    <input
+                                        type="text"
+                                        placeholder="예: Apple"
+                                        className="w-full p-5 rounded-3xl border-4 border-gray-50 focus:border-blue-400 outline-none transition-all text-2xl font-black text-gray-800"
+                                        value={term}
+                                        onChange={(e) => setTerm(e.target.value)}
+                                        required
+                                    />
                                 </div>
-                                {isRecording ? (
-                                    <button type="button" onClick={stopRecording} className="flex items-center gap-2 text-red-500 font-bold animate-pulse">
-                                        <Square className="w-5 h-5 fill-current" /> 정지
-                                    </button>
-                                ) : (
-                                    <button type="button" onClick={startRecording} className="flex items-center gap-2 text-blue-500 font-bold">
-                                        <Mic className="w-5 h-5" /> 녹음 시작
-                                    </button>
-                                )}
-                                {recordedUrl && !isRecording && (
-                                    <button type="button" onClick={() => new Audio(recordedUrl).play()} className="text-emerald-500">
-                                        <Play className="w-5 h-5 fill-current" />
-                                    </button>
-                                )}
+                                <div className="space-y-2">
+                                    <label className="text-sm font-black text-gray-400 ml-2">우리말 뜻 (Korean)</label>
+                                    <input
+                                        type="text"
+                                        placeholder="예: 사과"
+                                        className="w-full p-5 rounded-3xl border-4 border-gray-50 focus:border-pink-400 outline-none transition-all text-2xl font-black text-gray-800"
+                                        value={definition}
+                                        onChange={(e) => setDefinition(e.target.value)}
+                                        required
+                                    />
+                                </div>
                             </div>
 
-                            <button type="submit" className="kid-button btn-primary w-full">
-                                단어장에 추가하기
+                            <div className="relative group">
+                                <div className={`p-6 rounded-3xl border-4 border-dashed transition-all flex flex-col items-center justify-center gap-4 ${isRecording ? 'border-red-400 bg-red-50' : recordedUrl ? 'border-emerald-200 bg-emerald-50' : 'border-blue-50 bg-gray-50'}`}>
+                                    {isRecording ? (
+                                        <>
+                                            <div className="w-16 h-16 bg-red-500 rounded-full flex items-center justify-center animate-pulse shadow-lg shadow-red-200">
+                                                <Square className="w-6 h-6 text-white fill-current" />
+                                            </div>
+                                            <button type="button" onClick={stopRecording} className="text-red-500 font-black text-lg">녹음 중지하기</button>
+                                        </>
+                                    ) : recordedUrl ? (
+                                        <>
+                                            <div className="flex gap-4">
+                                                <div onClick={() => new Audio(recordedUrl).play()} className="w-16 h-16 bg-emerald-500 rounded-full flex items-center justify-center cursor-pointer shadow-lg shadow-emerald-200 hover:scale-110 transition-transform">
+                                                    <Volume2 className="w-8 h-8 text-white" />
+                                                </div>
+                                                <div onClick={startRecording} className="w-16 h-16 bg-white border-2 border-emerald-500 rounded-full flex items-center justify-center cursor-pointer hover:bg-emerald-50 transition-colors">
+                                                    <Mic className="w-6 h-6 text-emerald-500" />
+                                                </div>
+                                            </div>
+                                            <p className="text-emerald-600 font-black">녹음이 완료되었어요! 들어볼까요?</p>
+                                        </>
+                                    ) : (
+                                        <>
+                                            <button
+                                                type="button"
+                                                onClick={startRecording}
+                                                className="w-16 h-16 bg-blue-500 rounded-full flex items-center justify-center shadow-lg shadow-blue-200 hover:scale-110 transition-transform"
+                                            >
+                                                <Mic className="w-8 h-8 text-white" />
+                                            </button>
+                                            <p className="text-blue-400 font-black">이 단어의 발음을 내 목소리로 녹음해보세요</p>
+                                        </>
+                                    )}
+                                </div>
+                            </div>
+
+                            <button type="submit" className="kid-button btn-primary w-full py-6 text-2xl flex items-center justify-center gap-3">
+                                <Save className="w-8 h-8" /> 단어장에 쏙! 넣기
                             </button>
                         </form>
                     </motion.section>
                 ) : (
                     <motion.section
                         key="bulk"
-                        initial={{ opacity: 0, x: -20 }}
-                        animate={{ opacity: 1, x: 0 }}
-                        exit={{ opacity: 0, x: 20 }}
+                        initial={{ opacity: 0, y: 10 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        exit={{ opacity: 0, y: -10 }}
                         className="kid-card border-emerald-100 bg-emerald-50/20"
                     >
-                        <h2 className="text-2xl font-bold mb-4 text-emerald-600 flex items-center gap-2">
-                            <List className="w-6 h-6" /> 여러 단어 한꺼번에 넣기
+                        <h2 className="text-2xl font-black mb-4 text-emerald-600 flex items-center gap-2">
+                            <List className="w-6 h-6" /> 대량 추가하기
                         </h2>
-                        <p className="text-sm text-emerald-600/70 mb-4">"단어 - 뜻" 형식으로 줄바꿈하며 적어주세요.</p>
                         <form onSubmit={handleBulkSubmit} className="space-y-4">
                             <textarea
-                                placeholder="Apple - 사과&#10;Banana - 바나나&#10;Cat - 고양이"
-                                className="w-full h-40 p-4 rounded-3xl border-2 border-gray-100 focus:border-emerald-400 outline-none transition-colors text-lg"
+                                placeholder="Apple - 사과&#10;Banana - 바나나"
+                                className="w-full h-48 p-6 rounded-3xl border-4 border-white focus:border-emerald-400 outline-none transition-all text-xl font-bold bg-white/80"
                                 value={bulkText}
                                 onChange={(e) => setBulkText(e.target.value)}
                             />
-                            <button type="submit" className="kid-button btn-accent w-full">
-                                모두 추가하기
+                            <button type="submit" className="kid-button btn-accent w-full py-5 text-xl">
+                                모든 단어 한꺼번에 추가하기
                             </button>
                         </form>
                     </motion.section>
@@ -172,40 +192,61 @@ export default function WordManager() {
             </AnimatePresence>
 
             {/* 목록 */}
-            <section className="space-y-4">
-                <h2 className="text-2xl font-bold text-gray-700 flex items-center gap-2">
-                    <Hash className="w-6 h-6 text-gray-400" /> 나의 단어장 ({words.length})
-                </h2>
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                    {words.length === 0 ? (
-                        <div className="col-span-full py-12 text-center text-gray-400">
-                            아직 등록된 단어가 없어요.
-                        </div>
-                    ) : (
-                        words.map((word) => (
-                            <motion.div
-                                layout
-                                key={word.id}
-                                className="kid-card flex justify-between items-center group relative overflow-hidden"
-                            >
-                                <div>
-                                    <div className="text-xl font-bold text-blue-600">{word.term}</div>
-                                    <div className="text-gray-500">{word.definition}</div>
-                                    <div className="flex items-center gap-1 mt-2">
-                                        {[...Array(7)].map((_, i) => (
-                                            <div key={i} className={`w-2 h-1 rounded-full ${i < word.level ? 'bg-orange-400' : 'bg-gray-100'}`} />
-                                        ))}
-                                    </div>
-                                </div>
-                                <button
-                                    onClick={() => deleteWord(word.id)}
-                                    className="p-2 text-gray-300 hover:text-red-400 transition-colors"
-                                >
-                                    <Trash2 className="w-6 h-6" />
-                                </button>
+            <section className="space-y-6">
+                <div className="flex items-center justify-between">
+                    <h2 className="text-2xl font-black text-gray-700 flex items-center gap-2">
+                        <Hash className="w-6 h-6 text-gray-400" /> 나의 단어 뭉치 <span className="text-blue-500">{words.length}</span>
+                    </h2>
+                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+                    <AnimatePresence>
+                        {words.length === 0 ? (
+                            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="col-span-full py-20 text-center space-y-4">
+                                <div className="text-6xl text-gray-200">🛸</div>
+                                <div className="text-xl font-black text-gray-300">첫 단어를 등록해보세요!</div>
                             </motion.div>
-                        ))
-                    )}
+                        ) : (
+                            words.map((word) => (
+                                <motion.div
+                                    layout
+                                    initial={{ opacity: 0, scale: 0.9 }}
+                                    animate={{ opacity: 1, scale: 1 }}
+                                    exit={{ opacity: 0, scale: 0.9 }}
+                                    key={word.id}
+                                    className="kid-card bg-white hover:border-blue-200 group p-5 flex flex-col justify-between"
+                                >
+                                    <div className="flex justify-between items-start">
+                                        <div>
+                                            <div className="text-2xl font-black text-blue-600 mb-1">{word.term}</div>
+                                            <div className="text-lg font-bold text-gray-500">{word.definition}</div>
+                                        </div>
+                                        {word.audioUrl && (
+                                            <button
+                                                onClick={() => new Audio(word.audioUrl).play()}
+                                                className="p-2 bg-blue-50 rounded-xl text-blue-500 hover:bg-blue-100"
+                                            >
+                                                <Volume2 className="w-5 h-5" />
+                                            </button>
+                                        )}
+                                    </div>
+
+                                    <div className="flex items-center justify-between mt-6">
+                                        <div className="flex items-center gap-1">
+                                            {[...Array(7)].map((_, i) => (
+                                                <div key={i} className={`w-3 h-1.5 rounded-full ${i < word.level ? 'bg-orange-400' : 'bg-gray-100'}`} title={`Level ${word.level}`} />
+                                            ))}
+                                        </div>
+                                        <button
+                                            onClick={() => deleteWord(word.id)}
+                                            className="p-2 text-gray-300 hover:text-red-400 hover:bg-red-50 rounded-xl transition-all"
+                                        >
+                                            <Trash2 className="w-6 h-6" />
+                                        </button>
+                                    </div>
+                                </motion.div>
+                            ))
+                        )}
+                    </AnimatePresence>
                 </div>
             </section>
         </div>

@@ -114,9 +114,10 @@ export default function Home() {
       <div className="fixed bottom-24 right-6 md:hidden">
         <button
           onClick={() => startQuiz('all')}
-          className="w-16 h-16 bg-blue-600 text-white rounded-full shadow-2xl flex items-center justify-center active:scale-95 transition-transform"
+          disabled={words.length === 0}
+          className={`w-16 h-16 bg-blue-600 text-white rounded-full shadow-2xl flex items-center justify-center active:scale-95 transition-transform ${words.length === 0 ? 'opacity-50 grayscale' : ''}`}
         >
-          <Plus className="w-8 h-8" />
+          <ChevronRight className="w-8 h-8" />
         </button>
       </div>
     </div>
@@ -135,10 +136,3 @@ function NavButton({ active, onClick, icon: Icon, label }: any) {
   );
 }
 
-function Plus({ className }: any) {
-  return (
-    <svg xmlns="http://www.w3.org/2000/svg" className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor">
-      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M12 4v16m8-8H4" />
-    </svg>
-  );
-}
