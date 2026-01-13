@@ -21,6 +21,11 @@ export const useSpeech = () => {
         window.speechSynthesis.speak(utterance);
     }, []);
 
+    // STT 인스턴스를 관리하기 위한 ref
+    const recognitionRef = (typeof window !== 'undefined') ? new (useState<any>(null)[0]) : null;
+    // 위 방식은 잘못되었으므로 아래와 같이 ref 사용
+    const [recognition, setRecognition] = useState<any>(null);
+
     // Speech-to-Text (STT)
     const listen = useCallback((): Promise<string> => {
         return new Promise((resolve, reject) => {
@@ -32,26 +37,39 @@ export const useSpeech = () => {
                 return;
             }
 
-            const recognition = new SpeechRecognition();
-            recognition.lang = 'en-US';
-            recognition.interimResults = false;
-            recognition.maxAlternatives = 1;
+            const rec = new SpeechRecognition();
+            rec.lang = 'en-US';
+            rec.interimResults = false;
+            rec.maxAlternatives = 1;
 
-            recognition.onstart = () => setIsListening(true);
-            recognition.onend = () => setIsListening(false);
-            recognition.onerror = (event: any) => {
+            rec.onstart = () => setIsListening(true);
+            rec.onend = () => {
+                setIsListening(false);
+                setRecognition(null);
+            };
+            rec.onerror = (event: any) => {
                 setError(event.error);
+                setRecognition(null);
                 reject(event.error);
             };
 
-            recognition.onresult = (event: any) => {
+            rec.onresult = (event: any) => {
                 const transcript = event.results[0][0].transcript;
                 resolve(transcript);
             };
 
-            recognition.start();
+            setRecognition(rec);
+            rec.start();
         });
     }, []);
 
-    return { speak, listen, isListening, error };
+    const stopListening = useCallback(() => {
+        if (recognition) {
+            recognition.stop();
+            setIsListening(false);
+            setRecognition(null);
+        }
+    }, [recognition]);
+
+    return { speak, listen, stopListening, isListening, error };
 };

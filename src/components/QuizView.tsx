@@ -5,7 +5,7 @@ import { Word } from '@/types';
 import { useSpeech } from '@/hooks/useSpeech';
 import { calculateNextReview, resetSRSLevel } from '@/utils/srs';
 import { useWordStore } from '@/store/useWordStore';
-import { CheckCircle2, XCircle, Mic, ArrowLeft, Loader2, RotateCcw } from 'lucide-react';
+import { CheckCircle2, XCircle, Mic, ArrowLeft, Loader2, RotateCcw, Square } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 
 interface QuizViewProps {
@@ -22,11 +22,19 @@ export default function QuizView({ words, onFinish, onCancel }: QuizViewProps) {
     const [updatedWords, setUpdatedWords] = useState<Word[]>([...words]);
     const [chances, setChances] = useState(3);
 
-    const { speak, listen, isListening } = useSpeech();
+    const { speak, listen, stopListening, isListening } = useSpeech();
     const currentWord = words[currentIndex];
 
     // 효과음 미리 로드 (사용자님 요청: 띠링 하는 이벤트 음)
     const [ding] = useState(() => typeof Audio !== 'undefined' ? new Audio('https://assets.mixkit.co/active_storage/sfx/2000/2000-preview.mp3') : null);
+
+    // 컴포넌트 마운트 시 첫 번째 문제 자동 시작
+    useEffect(() => {
+        const timer = setTimeout(() => {
+            handleStartVoice();
+        }, 500);
+        return () => clearTimeout(timer);
+    }, [currentIndex]);
 
     const handleStartVoice = async () => {
         if (isProcessing || isListening) return;
@@ -34,7 +42,7 @@ export default function QuizView({ words, onFinish, onCancel }: QuizViewProps) {
         try {
             setIsProcessing(true);
 
-            // 1. 시작 멘트 생략 (자동 재생 시나리오)
+            // 1. 문제 출제 (자동 재생 시나리오)
             if (currentWord.audioUrl) {
                 const audio = new Audio(currentWord.audioUrl);
                 audio.onended = async () => {
@@ -86,22 +94,12 @@ export default function QuizView({ words, onFinish, onCancel }: QuizViewProps) {
 
             if (remainingChances > 0) {
                 setFeedback('retry');
-                // "Try again!" 짧게 말하고 바로 다시 인식 모드로 갈 수 있게 시퀀싱
-                speak('Try again!', 'en-US', () => {
+                // "Try again!" 짧게 말하고 바로 다시 인식 모드로 (완전 자동화)
+                speak('Try again!', 'en-US', async () => {
                     setFeedback(null);
                     setUserInput('');
-                    setIsProcessing(false);
-                    // 자동으로 다시 인식 모드로 진입하게 할 수도 있지만, 사용자 클릭 유도가 안전함
-                    // 여기서는 일단 딜레이를 0.5초로 줄임
+                    await startListening();
                 });
-
-                setTimeout(() => {
-                    if (feedback === 'retry') {
-                        setFeedback(null);
-                        setUserInput('');
-                        setIsProcessing(false);
-                    }
-                }, 1000);
             } else {
                 // 3번 다 틀렸을 때
                 setFeedback('wrong');
@@ -148,7 +146,10 @@ export default function QuizView({ words, onFinish, onCancel }: QuizViewProps) {
         <div className="fixed inset-0 bg-[#FDFCFB] z-50 flex flex-col items-center p-6 md:p-12 overflow-y-auto">
             <nav className="w-full max-w-4xl flex justify-between items-center mb-12">
                 <button
-                    onClick={onCancel}
+                    onClick={() => {
+                        stopListening();
+                        onCancel();
+                    }}
                     className="p-3 bg-white rounded-2xl shadow-sm text-gray-400 hover:text-gray-600 transition-colors"
                 >
                     <ArrowLeft className="w-6 h-6" />
@@ -221,22 +222,38 @@ export default function QuizView({ words, onFinish, onCancel }: QuizViewProps) {
 
                 {/* Action Button */}
                 <div className="h-40 flex items-center justify-center">
-                    {!feedback && !isProcessing && (
+                    {/* 듣고 있을 때는 정지 버튼 */}
+                    {isListening ? (
                         <motion.button
                             whileHover={{ scale: 1.1 }}
                             whileTap={{ scale: 0.9 }}
-                            onClick={handleStartVoice}
-                            disabled={isListening}
-                            className="w-24 h-24 bg-blue-600 rounded-full text-white shadow-xl shadow-blue-200 flex items-center justify-center group"
+                            onClick={() => {
+                                stopListening();
+                                setIsProcessing(false);
+                            }}
+                            className="w-24 h-24 bg-red-500 rounded-full text-white shadow-xl shadow-red-200 flex items-center justify-center group"
                         >
-                            <Mic className="w-10 h-10 group-hover:scale-110 transition-transform" />
+                            <Square className="w-10 h-10 fill-current group-hover:scale-110 transition-transform" />
                         </motion.button>
-                    )}
-                    {isProcessing && !feedback && (
-                        <div className="flex flex-col items-center gap-4">
-                            <Loader2 className="w-12 h-12 text-blue-500 animate-spin" />
-                            <div className="text-blue-500 font-bold">인식 중...</div>
-                        </div>
+                    ) : (
+                        <>
+                            {!feedback && !isProcessing && (
+                                <motion.button
+                                    whileHover={{ scale: 1.1 }}
+                                    whileTap={{ scale: 0.9 }}
+                                    onClick={handleStartVoice}
+                                    className="w-24 h-24 bg-blue-600 rounded-full text-white shadow-xl shadow-blue-200 flex items-center justify-center group"
+                                >
+                                    <Mic className="w-10 h-10 group-hover:scale-110 transition-transform" />
+                                </motion.button>
+                            )}
+                            {isProcessing && !feedback && (
+                                <div className="flex flex-col items-center gap-4">
+                                    <Loader2 className="w-12 h-12 text-blue-500 animate-spin" />
+                                    <div className="text-blue-500 font-bold">생각 중...</div>
+                                </div>
+                            )}
+                        </>
                     )}
                 </div>
             </div>
