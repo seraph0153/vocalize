@@ -8,11 +8,14 @@ interface AppState {
     dailyStreak: number;
     lastStudyDate: string | null;
     totalPoints: number;
+    gasUrl: string | null;
 
     // Actions
     addWord: (term: string, definition: string, audioUrl?: string) => void;
     deleteWord: (id: string) => void;
+    editWord: (id: string, term: string, definition: string) => void;
     updateWord: (id: string, updates: Partial<Word>) => void;
+    setGasUrl: (url: string | null) => void;
     finishQuiz: (updatedWords: Word[]) => void;
     updateStreak: () => void;
 }
@@ -24,6 +27,7 @@ export const useWordStore = create<AppState>()(
             dailyStreak: 0,
             lastStudyDate: null,
             totalPoints: 0,
+            gasUrl: null,
 
             addWord: (term, definition, audioUrl) => {
                 const newWord: Word = {
@@ -43,6 +47,14 @@ export const useWordStore = create<AppState>()(
             deleteWord: (id) => {
                 set((state) => ({ words: state.words.filter((w) => w.id !== id) }));
             },
+
+            editWord: (id, term, definition) => {
+                set((state) => ({
+                    words: state.words.map((w) => (w.id === id ? { ...w, term, definition } : w)),
+                }));
+            },
+
+            setGasUrl: (url) => set({ gasUrl: url }),
 
             updateWord: (id, updates) => {
                 set((state) => ({

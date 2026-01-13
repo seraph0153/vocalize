@@ -2,33 +2,70 @@
 
 import { useState, useRef } from 'react';
 import { createWorker } from 'tesseract.js';
-import { Camera, Upload, Loader2, Check, X, Edit2, Save } from 'lucide-react';
+import { Camera, Upload, Loader2, Check, X, Edit2, Save, Info } from 'lucide-react';
 import { useWordStore } from '@/store/useWordStore';
 import { motion, AnimatePresence } from 'framer-motion';
 
 export default function OCRScanner({ onComplete }: { onComplete: () => void }) {
     const [status, setStatus] = useState<'idle' | 'processing' | 'review'>('idle');
     const [progress, setProgress] = useState(0);
-    const [previewUrl, setPreviewUrl] = useState<string | null>(null);
     const [scannedWords, setScannedWords] = useState<{ term: string; definition: string }[]>([]);
-    const [editingIndex, setEditingIndex] = useState<number | null>(null);
 
     const fileInputRef = useRef<HTMLInputElement>(null);
+    const canvasRef = useRef<HTMLCanvasElement>(null);
     const addWord = useWordStore((state) => state.addWord);
 
     const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0];
         if (file) {
-            const url = URL.createObjectURL(file);
-            setPreviewUrl(url);
-            processImage(file);
+            preprocessAndProcess(file);
         }
     };
 
-    const processImage = async (file: File) => {
+    const preprocessAndProcess = (file: File) => {
         setStatus('processing');
-        setProgress(0);
+        const reader = new FileReader();
+        reader.onload = (event) => {
+            const img = new Image();
+            img.onload = () => {
+                const canvas = canvasRef.current;
+                if (!canvas) return;
+                const ctx = canvas.getContext('2d');
+                if (!ctx) return;
 
+                // Set canvas size to image size
+                canvas.width = img.width;
+                canvas.height = img.height;
+
+                // Draw image
+                ctx.drawImage(img, 0, 0);
+
+                // Preprocessing: Convert to Grayscale & Higher Contrast
+                const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+                const data = imageData.data;
+                for (let i = 0; i < data.length; i += 4) {
+                    const brightness = 0.34 * data[i] + 0.5 * data[i + 1] + 0.16 * data[i + 2];
+
+                    // Contrast enhancement
+                    let contrast = 1.5; // Factor
+                    let factor = (259 * (contrast + 255)) / (255 * (259 - contrast));
+                    let newVal = factor * (brightness - 128) + 128;
+
+                    data[i] = data[i + 1] = data[i + 2] = newVal;
+                }
+                ctx.putImageData(imageData, 0, 0);
+
+                // Process preprocessed image
+                canvas.toBlob((blob) => {
+                    if (blob) processImage(blob);
+                });
+            };
+            img.src = event.target?.result as string;
+        };
+        reader.readAsDataURL(file);
+    };
+
+    const processImage = async (blob: Blob) => {
         try {
             const worker = await createWorker('eng+kor', 1, {
                 logger: (m) => {
@@ -38,25 +75,19 @@ export default function OCRScanner({ onComplete }: { onComplete: () => void }) {
                 },
             });
 
-            const { data: { text } } = await worker.recognize(file);
+            const { data: { text } } = await worker.recognize(blob);
             await worker.terminate();
 
-            // Better parsing: match words and meanings more flexibly
             const lines = text.split('\n').filter(line => line.trim().length > 2);
             const parsed = lines.map(line => {
-                // Try various separators: -, :, =, | or just space between eng and kor
                 const parts = line.split(/[-:=|]/);
                 if (parts.length >= 2) {
                     return { term: parts[0].trim(), definition: parts[1].trim() };
                 }
-
-                // Fallback: split by first space if one side is English and other is Korean
-                // (Simplified logic for now)
                 const spaceMatch = line.match(/^([a-zA-Z\s]+)\s+(.+)$/);
                 if (spaceMatch) {
                     return { term: spaceMatch[1].trim(), definition: spaceMatch[2].trim() };
                 }
-
                 return { term: line.trim(), definition: '???' };
             });
 
@@ -93,20 +124,39 @@ export default function OCRScanner({ onComplete }: { onComplete: () => void }) {
                 <span>📸</span> 매직 카메라 스캐너
             </h2>
 
+            {/* Hidden processing canvas */}
+            <canvas ref={canvasRef} className="hidden" />
+
             <AnimatePresence mode="wait">
                 {status === 'idle' && (
                     <motion.div
                         initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-                        onClick={() => fileInputRef.current?.click()}
-                        className="border-4 border-dashed border-purple-200 rounded-3xl p-12 text-center cursor-pointer hover:bg-purple-50 transition-colors"
+                        className="space-y-6"
                     >
-                        <Upload className="w-12 h-12 text-purple-300 mx-auto mb-4" />
-                        <p className="text-purple-400 font-bold text-lg">단어장 사진을 올려주세요</p>
-                        <p className="text-purple-300 text-sm mt-2">글씨가 선명할수록 잘 읽어요!</p>
-                        <input
-                            type="file" accept="image/*" className="hidden"
-                            ref={fileInputRef} onChange={handleImageUpload}
-                        />
+                        <div
+                            onClick={() => fileInputRef.current?.click()}
+                            className="border-4 border-dashed border-purple-200 rounded-3xl p-12 text-center cursor-pointer hover:bg-purple-50 transition-colors"
+                        >
+                            <Upload className="w-12 h-12 text-purple-300 mx-auto mb-4" />
+                            <p className="text-purple-400 font-bold text-lg">단어장 사진을 올려주세요</p>
+                            <p className="text-purple-300 text-sm mt-2">AI가 흑백 처리로 정확도를 높여 읽어드려요!</p>
+                            <input
+                                type="file" accept="image/*" className="hidden"
+                                ref={fileInputRef} onChange={handleImageUpload}
+                            />
+                        </div>
+
+                        <div className="bg-white/80 p-5 rounded-3xl border border-purple-100 flex gap-3 items-start">
+                            <Info className="w-6 h-6 text-purple-400 shrink-0 mt-1" />
+                            <div className="text-sm text-purple-600 leading-relaxed">
+                                <p className="font-bold mb-1">💡 인식률을 높이는 꿀팁!</p>
+                                <ul className="list-disc list-inside space-y-1 opacity-80">
+                                    <li>밝은 곳에서 그림자가 생기지 않게 찍어주세요.</li>
+                                    <li>카메라를 수평으로 맞춰서 글자가 눕지 않게 해주세요.</li>
+                                    <li>글자가 선명하게 보이도록 초점을 맞춰주세요.</li>
+                                </ul>
+                            </div>
+                        </div>
                     </motion.div>
                 )}
 
@@ -122,7 +172,7 @@ export default function OCRScanner({ onComplete }: { onComplete: () => void }) {
                             </div>
                         </div>
                         <p className="text-purple-700 font-black text-xl animate-bounce-subtle">
-                            AI가 마법을 부리고 있어요...
+                            선명하게 보정하고 읽는 중...
                         </p>
                     </motion.div>
                 )}
@@ -133,7 +183,7 @@ export default function OCRScanner({ onComplete }: { onComplete: () => void }) {
                         className="space-y-4"
                     >
                         <div className="bg-white/50 backdrop-blur-sm p-3 rounded-2xl text-sm text-purple-600 font-bold text-center">
-                            인식된 글자를 확인하고 틀린 부분은 눌러서 고쳐주세요!
+                            보정된 단어들이에요! 틀린 부분은 직접 고쳐주세요.
                         </div>
 
                         <div className="max-h-80 overflow-y-auto space-y-2 pr-2 scrollbar-thin scrollbar-thumb-purple-200">
