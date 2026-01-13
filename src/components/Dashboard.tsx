@@ -86,14 +86,22 @@ export default function Dashboard({ onStartQuiz }: DashboardProps) {
                         <h2 className="text-2xl font-black text-gray-800 flex items-center gap-2">
                             <TrendingUp className="w-7 h-7 text-blue-500" /> 나의 학습 성장도
                         </h2>
-                        <button
-                            onClick={handleSync}
-                            disabled={isSyncing}
-                            className="flex items-center gap-2 text-sm font-bold text-blue-500 hover:text-blue-600 transition-colors"
-                        >
-                            {isSyncing ? <Loader2 className="w-4 h-4 animate-spin" /> : <CloudLightning className="w-4 h-4" />}
-                            구글 시트 동기화
-                        </button>
+                        <div className="flex items-center gap-3">
+                            <button
+                                onClick={() => setShowGasInput(!showGasInput)}
+                                className="text-sm font-bold text-gray-400 hover:text-blue-500 transition-colors"
+                            >
+                                {gasUrl ? '설정 수정' : '연동 설정'}
+                            </button>
+                            <button
+                                onClick={handleSync}
+                                disabled={isSyncing}
+                                className="flex items-center gap-2 text-sm font-bold text-blue-500 hover:text-blue-600 transition-colors bg-blue-50 px-4 py-2 rounded-xl"
+                            >
+                                {isSyncing ? <Loader2 className="w-4 h-4 animate-spin" /> : <CloudLightning className="w-4 h-4" />}
+                                동기화
+                            </button>
+                        </div>
                     </div>
 
                     {showGasInput && (
@@ -101,16 +109,19 @@ export default function Dashboard({ onStartQuiz }: DashboardProps) {
                             initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }}
                             className="mb-8 p-6 bg-blue-50 rounded-3xl border-2 border-blue-100 space-y-4"
                         >
-                            <p className="text-blue-600 font-bold">Google Apps Script Web App URL을 입력해주세요:</p>
+                            <p className="text-blue-600 font-bold">Google Apps Script Web App URL:</p>
                             <div className="flex gap-2">
                                 <input
-                                    className="flex-1 p-3 rounded-xl border-2 border-white outline-none focus:border-blue-300"
+                                    className="flex-1 p-3 rounded-xl border-2 border-white outline-none focus:border-blue-300 text-sm"
                                     placeholder="https://script.google.com/macros/s/..."
                                     value={tempUrl}
                                     onChange={(e) => setTempUrl(e.target.value)}
                                 />
                                 <button onClick={saveUrl} className="bg-blue-500 text-white px-6 rounded-xl font-bold">저장</button>
                             </div>
+                            {gasUrl && (
+                                <p className="text-[10px] text-blue-300 truncate">현재: {gasUrl}</p>
+                            )}
                         </motion.div>
                     )}
 
