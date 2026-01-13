@@ -12,6 +12,7 @@ interface AppState {
 
     // Actions
     addWord: (term: string, definition: string, audioUrl?: string) => void;
+    bulkAddWords: (newWords: { term: string; definition: string }[]) => void;
     deleteWord: (id: string) => void;
     editWord: (id: string, term: string, definition: string) => void;
     updateWord: (id: string, updates: Partial<Word>) => void;
@@ -42,6 +43,26 @@ export const useWordStore = create<AppState>()(
                     audioUrl,
                 };
                 set((state) => ({ words: [...state.words, newWord] }));
+            },
+
+            bulkAddWords: (newWordsList) => {
+                const currentWords = get().words;
+                const filteredNewWords = newWordsList
+                    .filter(nw => !currentWords.some(cw => cw.term.toLowerCase() === nw.term.toLowerCase()))
+                    .map(nw => ({
+                        id: crypto.randomUUID(),
+                        term: nw.term,
+                        definition: nw.definition,
+                        level: 0,
+                        nextReviewAt: Date.now(),
+                        lastReviewedAt: 0,
+                        wrongCount: 0,
+                        addedAt: Date.now(),
+                    }));
+
+                if (filteredNewWords.length > 0) {
+                    set((state) => ({ words: [...state.words, ...filteredNewWords] }));
+                }
             },
 
             deleteWord: (id) => {

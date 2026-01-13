@@ -10,18 +10,20 @@ import {
     CloudLightning,
     Loader2,
     BookX,
-    Play
+    Play,
+    Download
 } from 'lucide-react';
 import { useWordStore } from '@/store/useWordStore';
-import { syncToGas } from '@/utils/gasSync';
+import { syncToGas, fetchFromGas } from '@/utils/gasSync';
 
 interface DashboardProps {
     onStartQuiz: (mode: 'all' | 'review' | 'wrong') => void;
 }
 
 export default function Dashboard({ onStartQuiz }: DashboardProps) {
-    const { words, dailyStreak, totalPoints, gasUrl, setGasUrl } = useWordStore();
+    const { words, dailyStreak, totalPoints, gasUrl, setGasUrl, bulkAddWords } = useWordStore();
     const [isSyncing, setIsSyncing] = useState(false);
+    const [isFetching, setIsFetching] = useState(false);
     const [showGasInput, setShowGasInput] = useState(false);
     const [tempUrl, setTempUrl] = useState(gasUrl || '');
 
@@ -44,6 +46,28 @@ export default function Dashboard({ onStartQuiz }: DashboardProps) {
             alert('동기화 실패: URL을 확인해주세요.');
         } finally {
             setIsSyncing(false);
+        }
+    };
+
+    const handleLoad = async () => {
+        if (!gasUrl) {
+            setShowGasInput(true);
+            return;
+        }
+
+        setIsFetching(true);
+        try {
+            const fetchedWords = await fetchFromGas(gasUrl);
+            if (fetchedWords && fetchedWords.length > 0) {
+                bulkAddWords(fetchedWords);
+                alert(`${fetchedWords.length}개의 새로운 단어를 시트에서 가져왔습니다!`);
+            } else {
+                alert('시트에 가져올 새로운 단어가 없습니다.');
+            }
+        } catch (err) {
+            alert('가져오기 실패: URL과 시트 내용을 확인해주세요.');
+        } finally {
+            setIsFetching(false);
         }
     };
 
@@ -93,14 +117,24 @@ export default function Dashboard({ onStartQuiz }: DashboardProps) {
                             >
                                 {gasUrl ? '설정 수정' : '연동 설정'}
                             </button>
-                            <button
-                                onClick={handleSync}
-                                disabled={isSyncing}
-                                className="p-2 bg-blue-50 text-blue-500 rounded-xl hover:bg-blue-100 transition-colors shadow-sm"
-                                title="구글 시트 동기화"
-                            >
-                                {isSyncing ? <Loader2 className="w-5 h-5 animate-spin" /> : <CloudLightning className="w-5 h-5" />}
-                            </button>
+                            <div className="flex gap-2">
+                                <button
+                                    onClick={handleLoad}
+                                    disabled={isFetching || isSyncing}
+                                    className="p-2 bg-emerald-50 text-emerald-500 rounded-xl hover:bg-emerald-100 transition-colors shadow-sm"
+                                    title="시트에서 가져오기"
+                                >
+                                    {isFetching ? <Loader2 className="w-5 h-5 animate-spin" /> : <Download className="w-5 h-5" />}
+                                </button>
+                                <button
+                                    onClick={handleSync}
+                                    disabled={isSyncing || isFetching}
+                                    className="p-2 bg-blue-50 text-blue-500 rounded-xl hover:bg-blue-100 transition-colors shadow-sm"
+                                    title="구글 시트 동기화"
+                                >
+                                    {isSyncing ? <Loader2 className="w-5 h-5 animate-spin" /> : <CloudLightning className="w-5 h-5" />}
+                                </button>
+                            </div>
                         </div>
                     </div>
 
