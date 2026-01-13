@@ -34,30 +34,34 @@ export default function QuizView({ words, onFinish, onCancel }: QuizViewProps) {
         try {
             setIsProcessing(true);
 
-            // 1. 시작 멘트 생략 (사용자님 요청)
-            // 커스텀 녹음이 있다면 그걸 틀어주고, 없으면 바로 인식 모드로 진입하거나 뜻을 읽어줌
+            // 1. 시작 멘트 생략 (자동 재생 시나리오)
             if (currentWord.audioUrl) {
                 const audio = new Audio(currentWord.audioUrl);
+                audio.onended = async () => {
+                    await startListening();
+                };
                 audio.play();
-                await new Promise(resolve => setTimeout(resolve, 1500));
             } else {
-                // 뜻만 아주 짧게 읽어줌
-                speak(`${currentWord.definition}`, 'ko-KR');
-                await new Promise(resolve => setTimeout(resolve, 1000));
-            }
-
-            try {
-                const result = await listen();
-                setUserInput(result);
-                checkAnswer(result);
-            } catch (err) {
-                console.error('Speech recognition error:', err);
-                setIsProcessing(false);
+                // 뜻을 읽어주고 바로 인식 모드로 (onEnd 콜백 활용)
+                speak(`${currentWord.definition}`, 'ko-KR', async () => {
+                    await startListening();
+                });
             }
         } catch (err) {
             setIsProcessing(false);
         }
     };
+
+    const startListening = async () => {
+        try {
+            const result = await listen();
+            setUserInput(result);
+            checkAnswer(result);
+        } catch (err) {
+            console.error('Speech recognition error:', err);
+            setIsProcessing(false);
+        }
+    }
 
     const checkAnswer = (input: string) => {
         const isCorrect = input.toLowerCase().includes(currentWord.term.toLowerCase());
@@ -72,33 +76,43 @@ export default function QuizView({ words, onFinish, onCancel }: QuizViewProps) {
             const { nextLevel, nextReviewAt } = calculateNextReview(currentWord.level);
             updateWordStats(currentWord.id, nextLevel, nextReviewAt, false);
 
-            // 정답일 땐 아주 빠르게 다음으로 (딜레이 최소화 - 사용자님 요청)
+            // 정답일 땐 아주 빠르게 다음으로 (0.3초 - 소리만 들리면 바로 넘김)
             setTimeout(() => {
                 moveToNext();
-            }, 800);
+            }, 300);
         } else {
             const remainingChances = chances - 1;
             setChances(remainingChances);
 
             if (remainingChances > 0) {
                 setFeedback('retry');
-                speak('Try again!', 'en-US');
-                setTimeout(() => {
+                // "Try again!" 짧게 말하고 바로 다시 인식 모드로 갈 수 있게 시퀀싱
+                speak('Try again!', 'en-US', () => {
                     setFeedback(null);
                     setUserInput('');
                     setIsProcessing(false);
-                }, 1500);
+                    // 자동으로 다시 인식 모드로 진입하게 할 수도 있지만, 사용자 클릭 유도가 안전함
+                    // 여기서는 일단 딜레이를 0.5초로 줄임
+                });
+
+                setTimeout(() => {
+                    if (feedback === 'retry') {
+                        setFeedback(null);
+                        setUserInput('');
+                        setIsProcessing(false);
+                    }
+                }, 1000);
             } else {
                 // 3번 다 틀렸을 때
                 setFeedback('wrong');
-                speak(`It's okay. It is ${currentWord.term}.`, 'en-US');
+                speak(`It is ${currentWord.term}.`, 'en-US', () => {
+                    setTimeout(() => {
+                        moveToNext();
+                    }, 1000); // 틀렸을 땐 정답 확인을 위해 1초 정도 유지
+                });
 
                 const { nextLevel, nextReviewAt } = resetSRSLevel();
                 updateWordStats(currentWord.id, nextLevel, nextReviewAt, true);
-
-                setTimeout(() => {
-                    moveToNext();
-                }, 2500);
             }
         }
     };

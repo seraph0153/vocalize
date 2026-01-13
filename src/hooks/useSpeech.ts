@@ -7,12 +7,17 @@ export const useSpeech = () => {
     const [error, setError] = useState<string | null>(null);
 
     // Text-to-Speech (TTS)
-    const speak = useCallback((text: string, lang = 'en-US') => {
+    const speak = useCallback((text: string, lang = 'en-US', onEnd?: () => void) => {
         if (typeof window === 'undefined' || !window.speechSynthesis) return;
 
         const utterance = new SpeechSynthesisUtterance(text);
         utterance.lang = lang;
-        utterance.rate = 0.9; // 약간 천천히
+        utterance.rate = 1.0; // 속도를 조금 더 빠르게 (0.9 -> 1.0)
+
+        if (onEnd) {
+            utterance.onend = onEnd;
+        }
+
         window.speechSynthesis.speak(utterance);
     }, []);
 
