@@ -96,10 +96,10 @@ export default function Dashboard({ onStartQuiz }: DashboardProps) {
                             <button
                                 onClick={handleSync}
                                 disabled={isSyncing}
-                                className="flex items-center gap-2 text-sm font-bold text-blue-500 hover:text-blue-600 transition-colors bg-blue-50 px-4 py-2 rounded-xl"
+                                className="p-2 bg-blue-50 text-blue-500 rounded-xl hover:bg-blue-100 transition-colors shadow-sm"
+                                title="구글 시트 동기화"
                             >
-                                {isSyncing ? <Loader2 className="w-4 h-4 animate-spin" /> : <CloudLightning className="w-4 h-4" />}
-                                동기화
+                                {isSyncing ? <Loader2 className="w-5 h-5 animate-spin" /> : <CloudLightning className="w-5 h-5" />}
                             </button>
                         </div>
                     </div>
