@@ -17,6 +17,16 @@ export default function StudyView({ words, onCancel }: StudyViewProps) {
     const { speak } = useSpeech();
     const currentWord = words[currentIndex];
 
+    // 만일 단어가 없을 경우의 조기 리턴
+    if (!currentWord && words.length === 0) {
+        return (
+            <div className="fixed inset-0 bg-white z-[60] flex flex-col items-center justify-center p-6">
+                <div className="text-2xl font-bold text-gray-400 mb-6">학습할 단어가 없어요!</div>
+                <button onClick={onCancel} className="kid-button btn-primary">돌아가기</button>
+            </div>
+        );
+    }
+
     const handleNext = () => {
         setIsFlipped(false);
         setCurrentIndex((prev) => (prev + 1) % words.length);

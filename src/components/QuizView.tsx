@@ -26,9 +26,19 @@ export default function QuizView({ words, onFinish, onCancel }: QuizViewProps) {
     const { speak, listen, stopListening, isListening, volume } = useSpeech();
     const currentWord = words[currentIndex];
 
-    // 효과음 미리 로드 (더 편안하고 낮은 톤의 사운드로 교체)
-    const [ding] = useState(() => typeof Audio !== 'undefined' ? new Audio('https://cdn.pixabay.com/audio/2024/02/07/audio_dc19979350.mp3') : null); // Soft Ding
-    const [errorSound] = useState(() => typeof Audio !== 'undefined' ? new Audio('https://cdn.pixabay.com/audio/2022/03/10/audio_f558d7e0d3.mp3') : null); // Soft Error/Thud
+    // 만일 단어가 없을 경우의 조기 리턴
+    if (!currentWord && words.length === 0) {
+        return (
+            <div className="fixed inset-0 bg-white z-[60] flex flex-col items-center justify-center p-6">
+                <div className="text-2xl font-bold text-gray-400 mb-6">퀴즈를 풀 단어가 없어요!</div>
+                <button onClick={onCancel} className="kid-button btn-primary">돌아가기</button>
+            </div>
+        );
+    }
+
+    // 효과음 미리 로드 (로컬 자원으로 교체하여 403 방지)
+    const [ding] = useState(() => typeof Audio !== 'undefined' ? new Audio('/audio/correct.mp3') : null);
+    const [errorSound] = useState(() => typeof Audio !== 'undefined' ? new Audio('/audio/error.mp3') : null);
 
     // Forced deployment trigger - Study Mode & Soft Sounds Update - 2026-01-14
 
