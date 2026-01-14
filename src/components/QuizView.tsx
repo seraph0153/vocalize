@@ -26,16 +26,6 @@ export default function QuizView({ words, onFinish, onCancel }: QuizViewProps) {
     const { speak, listen, stopListening, isListening, volume } = useSpeech();
     const currentWord = words[currentIndex];
 
-    // 만일 단어가 없을 경우의 조기 리턴
-    if (!currentWord && words.length === 0) {
-        return (
-            <div className="fixed inset-0 bg-white z-[60] flex flex-col items-center justify-center p-6">
-                <div className="text-2xl font-bold text-gray-400 mb-6">퀴즈를 풀 단어가 없어요!</div>
-                <button onClick={onCancel} className="kid-button btn-primary">돌아가기</button>
-            </div>
-        );
-    }
-
     // 효과음 미리 로드 (로컬 자원으로 교체하여 403 방지)
     const [ding] = useState(() => typeof Audio !== 'undefined' ? new Audio('/audio/correct.mp3') : null);
     const [errorSound] = useState(() => typeof Audio !== 'undefined' ? new Audio('/audio/error.mp3') : null);
@@ -44,11 +34,26 @@ export default function QuizView({ words, onFinish, onCancel }: QuizViewProps) {
 
     // 컴포넌트 마운트 시 첫 번째 문제 자동 시작
     useEffect(() => {
+        if (!currentWord) return; // 여기에 안전 장치 추가
         const timer = setTimeout(() => {
             handleStartVoice();
         }, 1200);
         return () => clearTimeout(timer);
-    }, [currentIndex]);
+    }, [currentIndex, currentWord]);
+
+    // 만일 단어가 없을 경우의 조기 리턴 (모든 훅 호출 이후에 위치해야 함)
+    if (!currentWord && words.length === 0) {
+        return (
+            <div className="fixed inset-0 bg-[#FDFCFB] z-[60] flex flex-col items-center justify-center p-6 text-center">
+                <div className="text-8xl mb-10">🕵️‍♀️</div>
+                <div className="text-4xl font-black text-gray-800 mb-4">앗, 단어가 사라졌어요!</div>
+                <p className="text-gray-400 mb-12 text-xl font-bold">공부할 단어를 먼저 단어장에<br />넣어보러 갈까요?</p>
+                <button onClick={onCancel} className="kid-button btn-primary px-16 py-6 text-2xl shadow-xl shadow-blue-100">
+                    단어장으로 돌아가기
+                </button>
+            </div>
+        );
+    }
 
     // 어린이용 너그러운 등급 계산 함수 (Fuzzy Matching 유사도)
     const calculateGrade = (input: string, target: string): string => {

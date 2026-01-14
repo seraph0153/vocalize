@@ -17,16 +17,6 @@ export default function StudyView({ words, onCancel }: StudyViewProps) {
     const { speak } = useSpeech();
     const currentWord = words[currentIndex];
 
-    // 만일 단어가 없을 경우의 조기 리턴
-    if (!currentWord && words.length === 0) {
-        return (
-            <div className="fixed inset-0 bg-white z-[60] flex flex-col items-center justify-center p-6">
-                <div className="text-2xl font-bold text-gray-400 mb-6">학습할 단어가 없어요!</div>
-                <button onClick={onCancel} className="kid-button btn-primary">돌아가기</button>
-            </div>
-        );
-    }
-
     const handleNext = () => {
         setIsFlipped(false);
         setCurrentIndex((prev) => (prev + 1) % words.length);
@@ -39,12 +29,27 @@ export default function StudyView({ words, onCancel }: StudyViewProps) {
 
     const handleSpeak = (e: React.MouseEvent) => {
         e.stopPropagation();
+        if (!currentWord) return;
         if (isFlipped) {
             speak(currentWord.term, 'en-US');
         } else {
             speak(currentWord.definition, 'ko-KR');
         }
     };
+
+    // 만일 단어가 없을 경우의 조기 리턴 (모든 훅 호출 이후에 위치해야 함)
+    if (!currentWord && words.length === 0) {
+        return (
+            <div className="fixed inset-0 bg-[#FDFCFB] z-[60] flex flex-col items-center justify-center p-6 text-center">
+                <div className="text-8xl mb-10">📖</div>
+                <div className="text-4xl font-black text-gray-800 mb-4">공부할 단어가 없어요!</div>
+                <p className="text-gray-400 mb-12 text-xl font-bold">단어장에서 퀴즈에 나올 단어를<br />먼저 추가해 볼까요?</p>
+                <button onClick={onCancel} className="kid-button btn-primary px-16 py-6 text-2xl shadow-xl shadow-blue-100">
+                    단어장으로 돌아가기
+                </button>
+            </div>
+        );
+    }
 
     return (
         <div className="fixed inset-0 bg-[#FDFCFB] z-50 flex flex-col items-center p-6 md:p-12 overflow-y-auto">
