@@ -18,9 +18,10 @@ import { syncToGas, fetchFromGas } from '@/utils/gasSync';
 
 interface DashboardProps {
     onStartQuiz: (mode: 'all' | 'review' | 'wrong') => void;
+    onStartStudy: (mode: 'all' | 'review' | 'wrong') => void;
 }
 
-export default function Dashboard({ onStartQuiz }: DashboardProps) {
+export default function Dashboard({ onStartQuiz, onStartStudy }: DashboardProps) {
     const { words, dailyStreak, totalPoints, gasUrl, setGasUrl, bulkAddWords } = useWordStore();
     const [isSyncing, setIsSyncing] = useState(false);
     const [isFetching, setIsFetching] = useState(false);
@@ -178,13 +179,22 @@ export default function Dashboard({ onStartQuiz }: DashboardProps) {
                             다시 한번 복습하면 완벽하게 외울 수 있어요!
                         </p>
                     </div>
-                    <button
-                        onClick={() => onStartQuiz('wrong')}
-                        disabled={wrongWordsCount === 0}
-                        className="mt-8 kid-button bg-red-500 text-white shadow-lg shadow-red-200 py-6 text-xl flex items-center justify-center gap-3 hover:scale-[1.02] active:scale-[0.98] transition-all disabled:opacity-50 disabled:grayscale"
-                    >
-                        <Play className="w-6 h-6 fill-current" /> 오답들만 모아서 공부하기
-                    </button>
+                    <div className="flex gap-4 mt-8">
+                        <button
+                            onClick={() => onStartStudy('wrong')}
+                            disabled={wrongWordsCount === 0}
+                            className="flex-1 kid-button bg-white text-red-500 border-2 border-red-500 py-6 text-xl flex items-center justify-center gap-3 hover:bg-red-50 active:scale-[0.98] transition-all disabled:opacity-50"
+                        >
+                            미리 공부하기
+                        </button>
+                        <button
+                            onClick={() => onStartQuiz('wrong')}
+                            disabled={wrongWordsCount === 0}
+                            className="flex-[2] kid-button bg-red-500 text-white shadow-lg shadow-red-200 py-6 text-xl flex items-center justify-center gap-3 hover:shadow-red-300 active:scale-[0.98] transition-all disabled:opacity-50"
+                        >
+                            <Play className="w-6 h-6 fill-current" /> 퀴즈 도전!
+                        </button>
+                    </div>
                 </section>
             </div>
 
@@ -194,12 +204,20 @@ export default function Dashboard({ onStartQuiz }: DashboardProps) {
                     <div className="text-3xl font-black">오늘의 단어 퀴즈!</div>
                     <div className="text-blue-100 font-bold">아직 복습하지 않은 단어 {words.filter(w => w.nextReviewAt <= Date.now()).length}개가 기다리고 있어요.</div>
                 </div>
-                <button
-                    onClick={() => onStartQuiz('review')}
-                    className="bg-white text-blue-600 px-10 py-4 rounded-2xl font-black text-xl hover:scale-105 active:scale-95 transition-all"
-                >
-                    복습 시작하기
-                </button>
+                <div className="flex flex-col sm:flex-row gap-4">
+                    <button
+                        onClick={() => onStartStudy('review')}
+                        className="bg-blue-500 text-white border-2 border-blue-400 px-10 py-4 rounded-2xl font-black text-xl hover:bg-blue-400 transition-all"
+                    >
+                        먼저 학습하기
+                    </button>
+                    <button
+                        onClick={() => onStartQuiz('review')}
+                        className="bg-white text-blue-600 px-10 py-4 rounded-2xl font-black text-xl hover:scale-105 active:scale-95 transition-all shadow-lg"
+                    >
+                        바로 퀴즈 시작!
+                    </button>
+                </div>
             </div>
         </div>
     );

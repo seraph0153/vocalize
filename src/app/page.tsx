@@ -15,26 +15,44 @@ import Dashboard from '@/components/Dashboard';
 import WordManager from '@/components/WordManager';
 import OCRScanner from '@/components/OCRScanner';
 import QuizView from '@/components/QuizView';
+import StudyView from '@/components/StudyView';
 import { getDueWords } from '@/utils/srs';
 
 export default function Home() {
   const { words, finishQuiz } = useWordStore();
   const [activeTab, setActiveTab] = useState<'dashboard' | 'words' | 'ocr'>('dashboard');
   const [isQuizMode, setIsQuizMode] = useState(false);
+  const [isStudyMode, setIsStudyMode] = useState(false);
   const [quizFilter, setQuizFilter] = useState<'all' | 'review' | 'wrong'>('all');
 
   const startQuiz = (filter: 'all' | 'review' | 'wrong') => {
     setQuizFilter(filter);
     setIsQuizMode(true);
+    setIsStudyMode(false);
+  };
+
+  const startStudy = (filter: 'all' | 'review' | 'wrong') => {
+    setQuizFilter(filter);
+    setIsStudyMode(true);
+    setIsQuizMode(false);
   };
 
   const dueWords = getDueWords(words);
   const wrongWords = words.filter(w => w.wrongCount > 0);
 
-  if (isQuizMode) {
+  if (isQuizMode || isStudyMode) {
     let quizWords = words;
     if (quizFilter === 'review') quizWords = dueWords;
     if (quizFilter === 'wrong') quizWords = wrongWords;
+
+    if (isStudyMode) {
+      return (
+        <StudyView
+          words={quizWords}
+          onCancel={() => setIsStudyMode(false)}
+        />
+      );
+    }
 
     return (
       <QuizView
@@ -107,7 +125,7 @@ export default function Home() {
             exit={{ opacity: 0, scale: 1.02 }}
             transition={{ duration: 0.2 }}
           >
-            {activeTab === 'dashboard' && <Dashboard onStartQuiz={startQuiz} />}
+            {activeTab === 'dashboard' && <Dashboard onStartQuiz={startQuiz} onStartStudy={startStudy} />}
             {activeTab === 'words' && <WordManager />}
             {activeTab === 'ocr' && <OCRScanner onComplete={() => setActiveTab('words')} />}
           </motion.div>
