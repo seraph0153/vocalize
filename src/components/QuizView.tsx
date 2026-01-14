@@ -360,3 +360,4 @@ function WaveformCanvas({ volume }: { volume: number }) {
 
     return <canvas ref={canvasRef} width={400} height={120} className="w-full h-full" />;
 }
+// Forced deployment trigger-Wed Jan 14 09:28:40 KST 2026
