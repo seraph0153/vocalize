@@ -37,7 +37,7 @@ export default function QuizView({ words, onFinish, onCancel }: QuizViewProps) {
         if (!currentWord) return; // 여기에 안전 장치 추가
         const timer = setTimeout(() => {
             handleStartVoice();
-        }, 1200);
+        }, 200);
         return () => clearTimeout(timer);
     }, [currentIndex, currentWord]);
 
@@ -97,14 +97,14 @@ export default function QuizView({ words, onFinish, onCancel }: QuizViewProps) {
                 audio.onended = () => {
                     setTimeout(async () => {
                         await startListening();
-                    }, 800);
+                    }, 200);
                 };
                 audio.play();
             } else {
                 speak(`${currentWord.definition}`, 'ko-KR', () => {
                     setTimeout(async () => {
                         await startListening();
-                    }, 800);
+                    }, 200);
                 });
             }
         } catch (err) {
@@ -142,7 +142,7 @@ export default function QuizView({ words, onFinish, onCancel }: QuizViewProps) {
 
             setTimeout(() => {
                 moveToNext();
-            }, 1500);
+            }, 400); // 1.5s -> 0.4s로 대폭 단축
         } else {
             const remainingChances = chances - 1;
             setChances(remainingChances);
@@ -160,14 +160,14 @@ export default function QuizView({ words, onFinish, onCancel }: QuizViewProps) {
                         setGrade(null);
                         setUserInput('');
                         await startListening();
-                    }, 800);
+                    }, 300);
                 });
             } else {
                 setFeedback('wrong');
                 speak(`It is ${currentWord.term}.`, 'en-US', () => {
                     setTimeout(() => {
                         moveToNext();
-                    }, 2500);
+                    }, 1000); // 2.5s -> 1.0s로 단축
                 });
 
                 const { nextLevel, nextReviewAt } = resetSRSLevel();

@@ -70,6 +70,28 @@ export function useSpeech() {
         utterance.lang = lang;
         utterance.rate = 1.0;
 
+        // 음성 선택 로직 개선 (자연스러운 여성 음성 우선)
+        if (lang === 'en-US') {
+            const voices = window.speechSynthesis.getVoices();
+            console.log('Available voices:', voices.map(v => v.name)); // 디버깅용
+
+            // 우선순위: 1. Google US English (Chrome) 2. Samantha (Mac) 3. Microsoft Zira (Windows) 4. 기타 여성 음성
+            const preferredVoice =
+                voices.find(v => v.name === 'Google US English') ||
+                voices.find(v => v.name === 'Samantha') ||
+                voices.find(v => v.name.includes('Zira')) ||
+                voices.find(v => v.lang === 'en-US' && v.name.includes('Female')) ||
+                voices.find(v => v.lang === 'en-US');
+
+            if (preferredVoice) {
+                utterance.voice = preferredVoice;
+                // Google US English의 경우 약간 느리게 설정하여 더 자연스럽게
+                if (preferredVoice.name === 'Google US English') {
+                    utterance.rate = 0.9;
+                }
+            }
+        }
+
         if (onEnd) {
             utterance.onend = onEnd;
         }
